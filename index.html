@@ -1040,6 +1040,18 @@
     <div class="loading-spinner"></div>
   </div>
 
+  <script>
+    // Timeout de seguretat - si en 10 segons no carrega, amaga el loading
+    setTimeout(() => {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        overlay.classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+        console.error('Timeout: La connexió ha trigat massa');
+      }
+    }, 10000);
+  </script>
+
   <!-- Login Screen -->
   <div id="loginScreen" class="login-screen hidden">
     <div class="login-box">
@@ -1124,8 +1136,8 @@
   <script>
     // ========== CONFIGURACIÓ SUPABASE ==========
     // IMPORTANT: Canvia aquestes credencials per les teves!
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
 
     let supabaseClient;
     let currentUser = null;
@@ -1171,29 +1183,48 @@
 
     // ========== INICIALITZACIÓ ==========
     document.addEventListener('DOMContentLoaded', async () => {
-      // Inicialitzar Supabase
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      try {
+        // Comprovar que les credencials estan configurades
+        if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+          document.getElementById('loadingOverlay').classList.add('hidden');
+          alert('ERROR: Has de configurar les credencials de Supabase!\n\nObre index.html i canvia SUPABASE_URL i SUPABASE_ANON_KEY');
+          return;
+        }
 
-      // Comprovar si hi ha sessió activa
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      
-      if (session) {
-        currentUser = session.user;
-        showMainApp();
-      } else {
-        showLoginScreen();
-      }
+        // Inicialitzar Supabase
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      // Escoltar canvis d'autenticació
-      supabaseClient.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+        // Comprovar si hi ha sessió activa
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        if (error) {
+          console.error('Error de sessió:', error);
+          showLoginScreen();
+          return;
+        }
+        
+        if (session) {
           currentUser = session.user;
           showMainApp();
-        } else if (event === 'SIGNED_OUT') {
-          currentUser = null;
+        } else {
           showLoginScreen();
         }
-      });
+
+        // Escoltar canvis d'autenticació
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            showMainApp();
+          } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            showLoginScreen();
+          }
+        });
+      } catch (error) {
+        console.error('Error inicialitzant:', error);
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        alert('Error connectant amb Supabase: ' + error.message);
+      }
     });
 
     // ========== AUTENTICACIÓ ==========
