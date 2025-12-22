@@ -12,11 +12,11 @@
     
     /* LOGIN */
     .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: #764ba2; }
-    .login-box { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 350px; }
+    .login-box { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 350px; text-align: center; }
 
-    /* BARRA D'USUARI I ADMIN */
+    /* BARRES DE NAVEGACIÓ */
     .user-bar { background: #1f2937; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .admin-controls { background: #fff; padding: 15px 20px; border-bottom: 2px solid #e5e7eb; display: none; gap: 10px; }
+    .admin-controls { background: #fff; padding: 15px 20px; border-bottom: 2px solid #e5e7eb; display: none; gap: 10px; align-items: center; }
     
     /* ROLS */
     .role-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; margin-left: 10px; font-weight: bold; }
@@ -24,12 +24,11 @@
     .role-encarregat { background: #f59e0b; color: white; }
     .role-treballador { background: #10b981; color: white; }
 
-    /* APLICACIÓ */
-    .app-container { padding: 20px; }
-    .worker-list { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    /* FESTIUS */
+    .holiday-slot { background: #fff5f5 !important; border: 1px solid #fecaca !important; }
     .holiday-alert { color: #ef4444; font-weight: bold; margin-left: 10px; font-size: 0.9em; }
-    
-    button { cursor: pointer; padding: 8px 15px; border-radius: 6px; border: none; font-weight: 600; }
+
+    .btn { cursor: pointer; padding: 8px 15px; border-radius: 6px; border: none; font-weight: 600; }
     .btn-add { background: #10b981; color: white; }
     .btn-holiday { background: #ef4444; color: white; }
   </style>
@@ -38,11 +37,11 @@
 
   <div id="loginScreen" class="login-screen">
     <div class="login-box">
-      <h2 style="text-align: center;">🗓️ Horari Roca</h2>
+      <h2>🗓️ Horari Roca</h2>
       <form id="authForm">
         <input type="email" id="email" placeholder="Correu electrònic" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px;">
         <input type="password" id="password" placeholder="Contrasenya" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px;">
-        <button type="submit" style="width: 100%; background: #1f2937; color: white; padding: 10px;">Iniciar sessió</button>
+        <button type="submit" class="btn" style="width: 100%; background: #1f2937; color: white;">Iniciar sessió</button>
       </form>
     </div>
   </div>
@@ -54,48 +53,49 @@
         <span id="userEmail" style="margin-left: 15px; opacity: 0.8;"></span>
         <span id="userRoleBadge" class="role-badge"></span>
       </div>
-      <button onclick="logout()" style="background: #374151; color: white; font-size: 12px;">Tancar sessió</button>
+      <button onclick="logout()" class="btn" style="background: #374151; color: white; font-size: 12px;">Tancar sessió</button>
     </div>
 
     <div id="adminPanel" class="admin-controls">
-      <button class="btn-add" onclick="addNewWorker()">+ Afegir Treballador</button>
-      <input type="date" id="holidayPicker" style="padding: 7px; border: 1px solid #ccc; border-radius: 5px; margin-left: 10px;">
-      <button class="btn-holiday" onclick="toggleHoliday()">Marcar/Desmarcar Festiu</button>
+      <button class="btn btn-add" onclick="addNewWorker()">+ Afegir Treballador</button>
+      <div style="margin-left: auto;">
+        <input type="date" id="holidayPicker" style="padding: 7px; border: 1px solid #ccc; border-radius: 5px;">
+        <button class="btn btn-holiday" onclick="handleHolidayToggle()">Marcar/Desmarcar Festiu</button>
+      </div>
     </div>
 
-    <div class="app-container">
-      <div class="worker-list">
-        <h3>Treballadors actius</h3>
-        <div id="workersList">Carregant treballadors...</div>
+    <div style="padding: 20px;">
+      <div id="workersSection" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h3>Treballadors</h3>
+        <div id="workersList">Carregant...</div>
       </div>
-      <div id="calendarDisplay">
-        <p>Graella d'horaris configurada per al rol: <strong id="currentRoleText"></strong></p>
+      
+      <div id="scheduleGrid" style="background: white; padding: 20px; border-radius: 8px;">
+        <p>Graella d'horaris (Mode: <strong id="currentRoleText"></strong>)</p>
       </div>
     </div>
   </div>
 
   <script>
-    // 1. CONFIGURACIÓ
     const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
     let userRole = 'treballador';
 
-    // 2. INICIALITZACIÓ I LOGIN
+    // 1. GESTIÓ DE SESSÓ
     document.getElementById('authForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert("Error de login: " + error.message);
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) alert("Error: " + error.message);
       else location.reload();
     });
 
     async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
         currentUser = session.user;
         await loadRole();
@@ -106,9 +106,14 @@
       }
     }
 
-    // 3. GESTIÓ DE ROLS
+    // 2. CARREGAR EL ROL (Admin, Encarregat, Treballador)
     async function loadRole() {
-      const { data, error } = await supabase.from('profiles').select('role').eq('id', currentUser.id).single();
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+      
       if (data) {
         userRole = data.role;
         const badge = document.getElementById('userRoleBadge');
@@ -116,24 +121,25 @@
         badge.className = `role-badge role-${userRole}`;
         document.getElementById('currentRoleText').textContent = userRole;
         
-        if (userRole === 'admin') document.getElementById('adminPanel').style.display = 'flex';
+        if (userRole === 'admin') {
+            document.getElementById('adminPanel').style.display = 'flex';
+        }
       }
     }
 
-    // 4. TREBALLADORS I COLORS
+    // 3. GESTIÓ DE TREBALLADORS
     async function loadWorkers() {
-      const { data, error } = await supabase.from('workers').select('*').eq('user_id', currentUser.id);
+      const { data, error } = await supabaseClient.from('workers').select('*').eq('user_id', currentUser.id);
       const list = document.getElementById('workersList');
       list.innerHTML = '';
-      
       if (data) {
         data.forEach(w => {
           const div = document.createElement('div');
-          div.style.padding = "8px";
+          div.style.padding = "10px";
           div.style.marginBottom = "5px";
-          div.style.borderLeft = `5px solid ${w.color}`;
+          div.style.borderLeft = `6px solid ${w.color}`;
           div.style.background = "#f9fafb";
-          div.innerHTML = `<strong>${w.name}</strong> <small style="color:#666; margin-left:10px;">${w.color}</small>`;
+          div.innerHTML = `<strong>${w.name}</strong> <span style="font-size:0.8em; color:#666; margin-left:10px;">${w.color}</span>`;
           list.appendChild(div);
         });
       }
@@ -142,30 +148,32 @@
     async function addNewWorker() {
       if (userRole !== 'admin') return;
       const name = prompt("Nom del treballador:");
-      const color = prompt("Color hex (ex: #3b82f6):", "#3b82f6");
+      const color = prompt("Color hexadecimal (ex: #3b82f6):", "#3b82f6");
       if (name && color) {
-        await supabase.from('workers').insert([{ name, color, user_id: currentUser.id }]);
+        await supabaseClient.from('workers').insert([{ name, color, user_id: currentUser.id }]);
         loadWorkers();
       }
     }
 
-    async function toggleHoliday() {
+    // 4. FESTIUS
+    async function handleHolidayToggle() {
+      if (userRole !== 'admin') return;
       const date = document.getElementById('holidayPicker').value;
-      if (!date) return alert("Selecciona una data primer");
+      if (!date) return alert("Tria una data");
       
-      // Lògica per desar festiu a la taula 'holidays'
-      const { error } = await supabase.from('holidays').insert([{ date, user_id: currentUser.id }]);
-      if (error) {
-        // Si ja existeix, l'esborrem (toggle)
-        await supabase.from('holidays').delete().eq('date', date).eq('user_id', currentUser.id);
+      const { data } = await supabaseClient.from('holidays').select('*').eq('date', date).eq('user_id', currentUser.id);
+      
+      if (data && data.length > 0) {
+        await supabaseClient.from('holidays').delete().eq('date', date);
         alert("Festiu eliminat");
       } else {
-        alert("Festiu marcat correctament");
+        await supabaseClient.from('holidays').insert([{ date, user_id: currentUser.id }]);
+        alert("Festiu marcat");
       }
     }
 
     async function logout() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       location.reload();
     }
 
