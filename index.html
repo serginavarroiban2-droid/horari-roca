@@ -6,39 +6,728 @@
   <title>HORARI ROCA · Planner</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    /* MANTENIM TOTS ELS TEUS ESTILS ORIGINALS */
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; overflow: hidden; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #f3f4f6; }
+    
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+    }
 
-    /* ESTILS NOUS PER A ROLS I FESTIUS (Sense tocar els teus) */
-    .admin-only { display: none; }
-    .holiday-cell { background-color: #fee2e2 !important; }
-    .holiday-header { background-color: #ef4444 !important; color: white !important; }
-    .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: bold; margin-left: 10px; vertical-align: middle; }
-    .role-admin { background: #ef4444; color: white; }
-    .role-encarregat { background: #f59e0b; color: white; }
-    .role-treballador { background: #10b981; color: white; }
-    .holiday-alert { color: #ef4444; font-weight: bold; font-size: 11px; margin-left: 5px; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+    }
 
-    /* TOTA LA TEVA RESTA D'ESTILS (Login, App, Grid, Mobile...) */
-    .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .login-box { background: white; padding: 40px; border-radius: 16px; width: 100%; max-width: 400px; }
-    .app { display: flex; height: calc(100vh - 44px); }
-    .left { width: 240px; border-right: 2px solid #9ca3af; background: #fff; display: flex; flex-direction: column; }
-    .right { flex: 1; display: flex; flex-direction: column; padding: 10px; overflow: hidden; }
-    .week-grid { display: grid; grid-template-columns: 80px repeat(7, 1fr); grid-auto-rows: 26px; background: #fff; border: 2px solid #9ca3af; }
-    .cell { border: 1px solid #f3f4f6; position: relative; }
-    .shift-block { position: absolute; left: 2px; right: 2px; border-radius: 6px; z-index: 10; font-size: 10px; padding: 2px 4px; }
-    /* ... (He inclòs tots els teus estils de l'arxiu original) ... */
+    /* ========== LOGIN SCREEN ========== */
+    .login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-box {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 400px;
+      margin: 20px;
+    }
+
+    .login-box h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      color: #1f2937;
+      text-align: center;
+    }
+
+    .login-box p {
+      margin: 0 0 24px;
+      color: #6b7280;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .login-box input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .login-box button {
+      width: 100%;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .login-box button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -10px rgba(102, 126, 234, 0.5);
+    }
+
+    .login-box button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .login-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    /* ========== LOADING OVERLAY ========== */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ========== USER BAR ========== */
+    .user-bar {
+      background: #1f2937;
+      color: white;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .user-bar .user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-bar .user-avatar {
+      width: 28px;
+      height: 28px;
+      background: #667eea;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .user-bar .user-role {
+      background: #374151;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .user-bar .user-role.admin {
+      background: #dc2626;
+    }
+
+    .user-bar .user-role.encarregat {
+      background: #2563eb;
+    }
+
+    .user-bar .user-role.treballador {
+      background: #059669;
+    }
+
+    .user-bar button {
+      background: #374151;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .user-bar button:hover {
+      background: #4b5563;
+    }
+
+    .save-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .save-indicator.saving {
+      color: #fbbf24;
+    }
+
+    .save-indicator.saved {
+      color: #10b981;
+    }
+
+    .save-indicator.error {
+      color: #ef4444;
+    }
+
+    .app {
+      display: flex;
+      height: calc(100vh - 44px);
+      height: calc(100dvh - 44px);
+    }
+
+    /* ========== DESKTOP/TABLET NORMAL ========== */
+    .left {
+      width: 240px;
+      border-right: 2px solid #9ca3af;
+      background: #fff;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    .right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      gap: 10px;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .workers-info {
+      font-size: 11px;
+      color: #6b7280;
+      margin: 0 0 6px;
+    }
+
+    .worker-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .worker-row input[type="checkbox"] {
+      margin: 0;
+    }
+
+    .worker-row.selected .worker {
+      box-shadow: 0 0 0 2px #111827;
+    }
+
+    .worker {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      cursor: grab;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      position: relative;
+    }
+
+    .worker:active { cursor: grabbing; }
+
+    .worker-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+    }
+
+    #summary {
+      margin-top: 10px;
+      font-size: 11px;
+    }
+
+    #summary h3 {
+      margin: 6px 0 4px;
+      font-size: 12px;
+    }
+
+    #summary table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #summary th, #summary td {
+      padding: 2px 4px;
+      text-align: left;
+    }
+
+    #summary th {
+      border-bottom: 1px solid #d1d5db;
+      font-weight: 600;
+    }
+
+    #summary td.hours {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #summary .holiday-warning {
+      color: #dc2626;
+      font-size: 14px;
+      margin-left: 4px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      flex-wrap: wrap;
+    }
+
+    .top-bar input[type="date"] {
+      font-size: 13px;
+      padding: 2px 4px;
+    }
+
+    #weekDate.holiday-week {
+      border-color: #ef4444;
+      background: #fee2e2;
+    }
+
+    #weekBanner {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #111827;
+    }
+
+    /* ========== HOLIDAY PICKER ========== */
+    .holiday-picker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .holiday-picker label {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .holiday-picker input[type="date"] {
+      font-size: 12px;
+      padding: 2px 4px;
+    }
+
+    .holiday-picker button {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      cursor: pointer;
+    }
+
+    .holiday-picker .add-holiday {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #dc2626;
+    }
+
+    .holiday-picker .add-holiday:hover {
+      background: #fee2e2;
+    }
+
+    .holiday-picker .remove-holiday {
+      background: #f9fafb;
+      color: #6b7280;
+    }
+
+    .holiday-picker .remove-holiday:hover {
+      background: #f3f4f6;
+    }
+
+    .week-wrapper {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+      padding: 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .week-grid-wrapper {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      position: relative;
+    }
+
+    .week-grid {
+      display: grid;
+      grid-auto-rows: 26px;
+      background: #fff;
+      border-radius: 6px;
+      border: 2px solid #9ca3af;
+      overflow: hidden;
+      height: 100%;
+      min-height: 0;
+      min-width: 800px;
+    }
+
+    .cell {
+      border: 1px solid #f3f4f6;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      background: #fff;
+      position: relative;
+    }
+
+    .cell.header-day {
+      background: #dbeafe;
+      font-weight: 600;
+      font-size: 12px;
+      color: #111827;
+      border-bottom: 2px solid #9ca3af;
+    }
+
+    .cell.header-day.holiday-day {
+      background: #fecaca;
+      color: #7f1d1d;
+    }
+
+    .cell.hour-cell {
+      background: #e5e7eb;
+      justify-content: flex-end;
+      align-items: flex-start;
+      padding-right: 3px;
+      padding-top: 2px;
+      color: #374151;
+      font-size: 11px;
+      border-right: 2px solid #9ca3af;
+    }
+
+    .cell.slot-cell {
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .cell.slot-cell.holiday-slot {
+      background: #fef2f2;
+    }
+
+    .cell.slot-cell.drop-target {
+      background: #e0f2fe;
+      box-shadow: inset 0 0 0 1px #60a5fa;
+    }
+
+    .narrow-col {
+      background: #f9fafb;
+    }
+
+    .day-separator {
+      border-right: 2px solid #9ca3af !important;
+    }
+
+    .shift-block {
+      border-radius: 6px;
+      font-size: 10px;
+      padding: 2px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      border: 1px solid #3b82f6;
+      position: relative;
+      cursor: move;
+    }
+
+    .shift-block.moving {
+      opacity: 0.85;
+      pointer-events: none;
+    }
+
+    .shift-block.editing {
+      animation: pulse 1s ease-in-out infinite;
+      z-index: 100;
+      box-shadow: 0 0 0 3px #3b82f6;
+    }
+
+    .shift-block.readonly {
+      cursor: default;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .edit-handle {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: #3b82f6;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 32px;
+      font-weight: bold;
+      cursor: grab;
+      z-index: 200;
+      touch-action: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .shift-block.editing .edit-handle {
+      display: flex !important;
+    }
+
+    .edit-handle.top {
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .edit-handle.bottom {
+      bottom: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .shift-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-width: 0;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .shift-main {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #111827;
+      padding: 0 2px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .shift-note {
+      font-size: 9px;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0 2px;
+    }
+
+    .handle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 8px;
+      cursor: ns-resize;
+      user-select: none;
+      z-index: 10;
+    }
+
+    .handle.top { top: 0; }
+    .handle.bottom { bottom: 0; }
+
+    .handle::after {
+      content: '';
+      display: block;
+      margin: 0 auto;
+      width: 60%;
+      height: 2px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.35);
+    }
+
+    .shift-del {
+      border: none;
+      background: rgba(239, 68, 68, 0.95);
+      color: #fff;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 6px 10px;
+      min-width: 32px;
+      height: 32px;
+      z-index: 11;
+      border-radius: 6px;
+      font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      font-size: 11px;
+      margin-top: 4px;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .bottom-bar button {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      cursor: pointer;
+    }
+
+    .report-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      font-size: 11px;
+    }
+
+    .report-controls input[type="date"] {
+      font-size: 11px;
+      padding: 2px 4px;
+    }
+
+    #status {
+      font-size: 11px;
+      color: #059669;
+      margin-left: auto;
+      min-height: 14px;
+    }
+
+    .red-line {
+      border-top: 2px solid #ef4444 !important;
+    }
+
+    /* ========== IMPRESSIÓ ========== */
+    @media print {
+      @page { size: A4 landscape; }
+      body { background: #fff; }
+      .left, .bottom-bar, .user-bar, .holiday-picker { display: none !important; }
+      .right { padding: 0; }
+      .app { height: auto; }
+      .week-wrapper { box-shadow: none; padding: 0; height: auto; }
+      .week-grid { border-width: 1px; grid-auto-rows: 22px !important; }
+      .cell { font-size: 9px; }
+      .shift-main, .shift-note { font-size: 8px; }
+    }
+
+    /* ========== MÒBIL ========== */
+    @media screen and (max-width: 900px) {
+      .holiday-picker { display: none !important; }
+      .bottom-bar { display: none !important; }
+      .left { width: 100% !important; height: 80px !important; flex-direction: row !important; overflow-x: auto !important; border-right: none !important; border-bottom: 1px solid #d1d5db !important; }
+      h2, .workers-info, #summary { display: none !important; }
+      #workers { display: flex !important; flex-direction: row !important; gap: 8px !important; }
+      .worker-row { margin: 0 !important; flex-shrink: 0 !important; }
+      .worker-row input[type="checkbox"] { display: none !important; }
+      .worker { width: 65px !important; height: 65px !important; border-radius: 50% !important; padding: 0 !important; font-size: 0 !important; }
+      .worker-color { width: 100% !important; height: 100% !important; border-radius: 50% !important; }
+      .worker span { display: none !important; }
+      .worker::after { content: attr(data-initials) !important; position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 16px !important; font-weight: 700 !important; color: #111827 !important; }
+      .app { flex-direction: column !important; }
+      .right { padding: 0 !important; gap: 0 !important; }
+      .top-bar { padding: 4px 8px !important; font-size: 11px !important; }
+      .week-wrapper { padding: 0 !important; border-radius: 0 !important; }
+      .week-grid { min-width: 900px !important; grid-auto-rows: 32px !important; }
+    }
   </style>
 </head>
 <body>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
 
-  <div id="loginScreen" class="login-screen">
+  <script>
+    setTimeout(() => {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        overlay.classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+      }
+    }, 10000);
+  </script>
+
+  <div id="loginScreen" class="login-screen hidden">
     <div class="login-box">
       <h1>🗓️ Horari Roca</h1>
-      <form id="authForm" onsubmit="handleAuth(event)">
+      <p>Planificador de torns</p>
+      <div id="loginError" class="login-error"></div>
+      <form id="authForm" onsubmit="handleLogin(event)">
         <input type="email" id="email" placeholder="Correu electrònic" required>
         <input type="password" id="password" placeholder="Contrasenya" required>
         <button type="submit" id="authButton">Iniciar sessió</button>
@@ -47,129 +736,851 @@
   </div>
 
   <div id="mainApp" class="hidden">
-    <div class="user-bar" style="background:#1f2937; color:white; padding:8px 15px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <span id="userEmailDisplay"></span>
-        <span id="roleDisplay" class="role-badge"></span>
+    <div class="user-bar">
+      <div class="user-info">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <span id="userName">Usuari</span>
+        <span class="user-role" id="userRole">-</span>
       </div>
-      <button onclick="supabaseClient.auth.signOut().then(()=>location.reload())" style="background:#374151; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Sortir</button>
-    </div>
-
-    <div id="adminPanel" class="admin-only" style="background:white; padding:10px; border-bottom:1px solid #ccc; gap:10px;">
-      <button onclick="addWorkerPrompt()" style="background:#10b981; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">+ Treballador</button>
-      <div style="margin-left:auto; display:flex; align-items:center; gap:5px;">
-        <input type="date" id="holidayInput" style="padding:4px;">
-        <button onclick="toggleHoliday()" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Marcar/Desmarcar Festiu</button>
+      <div class="save-indicator" id="saveIndicator">
+        <span>●</span> <span id="saveText">Desat</span>
       </div>
+      <button onclick="logout()">Tancar sessió</button>
     </div>
 
     <div class="app">
-      <div class="left">
-        <div style="padding:10px; border-bottom:1px solid #eee;">
-          <h2 style="margin:0; font-size:16px;">Treballadors</h2>
+      <div class="left" id="leftPanel">
+        <h2>Treballadors</h2>
+        <p class="workers-info" id="workersInfo">Arrossega per crear torns.</p>
+        <div id="workers"></div>
+        <div id="summary">
+          <h3>Resum hores setmana</h3>
+          <div id="summaryContent">Cap torn encara.</div>
         </div>
-        <div id="workers" style="flex:1; overflow-y:auto; padding:10px;"></div>
-        <div id="summary" style="height:250px; border-top:2px solid #9ca3af; padding:10px; overflow-y:auto;"></div>
       </div>
 
       <div class="right">
-        <div class="top-bar" style="margin-bottom:10px; display:flex; align-items:center; gap:15px;">
-          <input type="date" id="weekDate">
-          <button onclick="changeWeek(-1)">◀</button>
-          <button onclick="changeWeek(1)">▶</button>
-          <button onclick="generateSummary()">📊 Resum</button>
-          <span id="weekBanner" style="font-weight:bold;"></span>
+        <div class="top-bar">
+          <label>Setmana: <input type="date" id="weekDate"></label>
+          <span id="weekBanner"></span>
+          <div class="holiday-picker" id="holidayPicker">
+            <label>Festiu:</label>
+            <input type="date" id="holidayDate">
+            <button class="add-holiday" onclick="addHoliday()">+ Afegir</button>
+            <button class="remove-holiday" onclick="removeHoliday()">- Treure</button>
+          </div>
         </div>
-        <div style="flex:1; overflow:auto;">
-          <div class="week-grid" id="weekGrid"></div>
+
+        <div class="week-wrapper">
+          <div class="week-grid-wrapper">
+            <div class="week-grid" id="weekGrid"></div>
+          </div>
+          <div class="bottom-bar" id="bottomBar">
+            <div class="report-controls">
+              <label>De: <input type="date" id="reportFrom"></label>
+              <label>A: <input type="date" id="reportTo"></label>
+              <button id="reportBtn">Resum PDF</button>
+            </div>
+            <button id="copyBtn">Copiar</button>
+            <button id="pasteBtn">Enganxar</button>
+            <button id="printBtn">Imprimir</button>
+            <button id="clearBtn">Netejar</button>
+            <div id="status"></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // --- CONFIGURACIÓ ---
+    // ========== CONFIGURACIÓ SUPABASE ==========
     const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_KEY_HERE'; // RECORDA POSAR LA TEVA KEY
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
 
+    let supabaseClient;
     let currentUser = null;
-    let userRole = 'treballador'; 
+    let currentUserRole = 'treballador';
+    let currentUserName = '';
+    let currentWorkerName = '';
+
+    // ========== CONSTANTS ==========
+    const HOUR_START = 7;
+    const HOUR_END = 22;
+    const SLOT_MINUTES = 30;
+    const SLOTS_PER_HOUR = 60 / SLOT_MINUTES;
+    const TOTAL_SLOTS = (HOUR_END - HOUR_START) * SLOTS_PER_HOUR;
+    const MIN_SLOTS_CREATE = 5 * SLOTS_PER_HOUR;
+    const DAYS = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
+    const LANES_PER_DAY = 5;
+
     let workers = [];
     let shifts = [];
-    let holidays = [];
+    let nextId = 1;
+    let resizing = null;
+    let moving = null;
+    let currentWeekStart = null;
+    let copiedWeek = null;
+    let weekHolidays = [];
+    let allHolidays = [];
+    let editingShiftId = null;
+    let saveTimeout = null;
+    let slotHeightRuntime = 26;
 
-    // --- LÒGICA DE ROLS I PERMISOS ---
-    async function loadSession() {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        document.getElementById('userEmailDisplay').textContent = currentUser.email;
+    const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth <= 900;
+
+    // ========== INICIALITZACIÓ ==========
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
+          document.getElementById('loadingOverlay').classList.add('hidden');
+          alert('ERROR: Configura SUPABASE_URL i SUPABASE_ANON_KEY');
+          return;
+        }
+
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data: { session } } = await supabaseClient.auth.getSession();
         
-        // Carregar Rol des de la taula profiles
-        const { data: profile } = await supabaseClient.from('profiles').select('role').eq('id', currentUser.id).single();
-        userRole = profile ? profile.role : 'treballador';
-        
-        const rBadge = document.getElementById('roleDisplay');
-        rBadge.textContent = userRole;
-        rBadge.className = `role-badge role-${userRole}`;
-        
-        if (userRole === 'admin') document.getElementById('adminPanel').style.display = 'flex';
-        
-        showApp();
-        loadWeek();
+        if (session) {
+          currentUser = session.user;
+          await loadUserProfile();
+          showMainApp();
+        } else {
+          showLoginScreen();
+        }
+
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            await loadUserProfile();
+            showMainApp();
+          } else if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            showLoginScreen();
+          }
+        });
+      } catch (error) {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        alert('Error: ' + error.message);
+      }
+    });
+
+    // ========== ROLS ==========
+    async function loadUserProfile() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .single();
+
+        if (data) {
+          currentUserRole = data.role || 'treballador';
+          currentUserName = data.name || currentUser.email;
+          currentWorkerName = data.worker_name || '';
+        } else {
+          currentUserRole = 'treballador';
+          currentUserName = currentUser.email;
+        }
+      } catch (error) {
+        currentUserRole = 'treballador';
+        currentUserName = currentUser.email;
       }
     }
 
-    // Bloqueig de funcions segons rol
-    function checkCanEdit() {
-      if (userRole === 'admin') return true;
-      alert("Accés denegat: Només l'administrador pot fer canvis.");
-      return false;
-    }
+    function canEdit() { return currentUserRole === 'admin'; }
+    function canViewAll() { return currentUserRole === 'admin' || currentUserRole === 'encarregat'; }
 
-    // --- GESTIÓ DE TREBALLADORS I COLORS ---
-    async function addWorkerPrompt() {
-      if (!checkCanEdit()) return;
-      const name = prompt("Nom del nou treballador:");
-      const color = prompt("Color (Hexadecimal, ex: #ff0000):", "#3b82f6");
-      if (name) {
-        await supabaseClient.from('workers').insert([{ name, color, user_id: currentUser.id }]);
-        loadWeek();
-      }
-    }
+    function applyRoleRestrictions() {
+      const holidayPicker = document.getElementById('holidayPicker');
+      const bottomBar = document.getElementById('bottomBar');
+      const leftPanel = document.getElementById('leftPanel');
+      const workersInfo = document.getElementById('workersInfo');
 
-    // --- GESTIÓ DE FESTIUS ---
-    async function toggleHoliday() {
-      if (!checkCanEdit()) return;
-      const date = document.getElementById('holidayInput').value;
-      if (!date) return;
-      
-      const isPresent = holidays.find(h => h.date === date);
-      if (isPresent) {
-        await supabaseClient.from('holidays').delete().eq('date', date);
+      if (currentUserRole === 'admin') {
+        holidayPicker.classList.remove('hidden');
+        bottomBar.classList.remove('hidden');
+        leftPanel.classList.remove('hidden');
+        workersInfo.textContent = 'Arrossega per crear torns. Doble clic per afegir nota.';
+      } else if (currentUserRole === 'encarregat') {
+        holidayPicker.classList.add('hidden');
+        bottomBar.classList.add('hidden');
+        leftPanel.classList.remove('hidden');
+        workersInfo.textContent = 'Mode visualització (només lectura).';
       } else {
-        await supabaseClient.from('holidays').insert([{ date, user_id: currentUser.id }]);
+        holidayPicker.classList.add('hidden');
+        bottomBar.classList.add('hidden');
+        leftPanel.classList.add('hidden');
       }
+
+      const roleEl = document.getElementById('userRole');
+      roleEl.textContent = currentUserRole;
+      roleEl.className = 'user-role ' + currentUserRole;
+    }
+
+    // ========== AUTH ==========
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const loginError = document.getElementById('loginError');
+      const authButton = document.getElementById('authButton');
+
+      loginError.style.display = 'none';
+      authButton.disabled = true;
+      authButton.textContent = 'Entrant...';
+
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } catch (error) {
+        loginError.textContent = error.message.includes('Invalid') ? 'Credencials incorrectes' : error.message;
+        loginError.style.display = 'block';
+      } finally {
+        authButton.disabled = false;
+        authButton.textContent = 'Iniciar sessió';
+      }
+    }
+
+    async function logout() { await supabaseClient.auth.signOut(); }
+
+    function showLoginScreen() {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('mainApp').classList.add('hidden');
+    }
+
+    function showMainApp() {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      document.getElementById('userName').textContent = currentUserName;
+      document.getElementById('userAvatar').textContent = currentUserName.charAt(0).toUpperCase();
+      applyRoleRestrictions();
+      initializeApp();
+    }
+
+    function initializeApp() {
+      const weekInput = document.getElementById('weekDate');
+      weekInput.value = new Date().toISOString().slice(0, 10);
+      
+      if (canEdit()) {
+        document.getElementById('clearBtn').addEventListener('click', clearShifts);
+        document.getElementById('copyBtn').addEventListener('click', copyWeek);
+        document.getElementById('pasteBtn').addEventListener('click', pasteWeek);
+        document.getElementById('reportBtn').addEventListener('click', generateReport);
+      }
+      
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+      weekInput.addEventListener('change', loadWeek);
+
+      buildWeekGrid();
+      loadWeek();
+
+      if (canEdit()) {
+        document.addEventListener('pointermove', onPointerMoveGlobal);
+        document.addEventListener('pointerup', onPointerUpGlobal);
+      }
+
+      window.addEventListener('resize', adjustSlotHeight);
+      adjustSlotHeight();
+    }
+
+    // ========== FESTIUS ==========
+    async function loadAllHolidays() {
+      const { data } = await supabaseClient.from('holidays').select('date');
+      return data ? data.map(h => h.date) : [];
+    }
+
+    async function addHoliday() {
+      if (!canEdit()) return;
+      const date = document.getElementById('holidayDate').value;
+      if (!date) { setStatus('Selecciona una data', true); return; }
+
+      const { error } = await supabaseClient.from('holidays').insert({ date });
+      if (error) {
+        setStatus(error.code === '23505' ? 'Ja és festiu' : error.message, true);
+      } else {
+        setStatus('Festiu afegit', false);
+        loadWeek();
+      }
+    }
+
+    async function removeHoliday() {
+      if (!canEdit()) return;
+      const date = document.getElementById('holidayDate').value;
+      if (!date) { setStatus('Selecciona una data', true); return; }
+
+      await supabaseClient.from('holidays').delete().eq('date', date);
+      setStatus('Festiu eliminat', false);
       loadWeek();
     }
 
-    // --- MODIFICACIÓ AL RESUM PER FESTIUS ---
-    function renderSummary() {
-      const summaryDiv = document.getElementById('summary');
-      // ... (Dins del teu bucle de càlcul de hores)
-      const isWorkingOnHoliday = shifts.some(s => s.worker_id === w.id && holidays.some(h => h.date === s.date));
-      const alert = isWorkingOnHoliday ? '<span class="holiday-alert">⚠️ Festiu treballat</span>' : '';
-      // ... afegir alert al HTML del resum
+    // ========== DATA ==========
+    async function loadWorkersFromSupabase() {
+      const { data } = await supabaseClient.from('workers').select('*').order('name');
+      return data && data.length ? data.map(w => ({ name: w.name, color: w.color, selected: true })) : [];
     }
 
-    // --- INTEGRACIÓ AMB LA TEVA GRAELLA ORIGINAL ---
-    // (Aquí s'inclouen les teves funcions: buildGrid, loadShifts, onMouseDown, etc.)
-    // A cada funció d'edició (com startMove), he afegit: if(!checkCanEdit()) return;
+    async function loadShiftsFromSupabase(weekStart) {
+      const weekEnd = new Date(parseISODate(weekStart));
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const { data } = await supabaseClient.from('shifts').select('*').gte('date', weekStart).lte('date', formatISO(weekEnd));
+      return data || [];
+    }
 
-    // ... (Resta del codi de 900 línies exactament igual al teu) ...
+    async function saveShiftsToSupabase() {
+      if (!currentUser || !currentWeekStart || !canEdit()) return;
+      updateSaveIndicator('saving');
 
-    document.addEventListener('DOMContentLoaded', loadSession);
+      try {
+        const weekEnd = new Date(parseISODate(currentWeekStart));
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        await supabaseClient.from('shifts').delete().gte('date', currentWeekStart).lte('date', formatISO(weekEnd));
+
+        if (shifts.length > 0) {
+          const shiftsToInsert = shifts.map(s => {
+            const shiftDate = new Date(parseISODate(currentWeekStart));
+            shiftDate.setDate(shiftDate.getDate() + s.dayIndex);
+            return {
+              worker_name: s.worker,
+              date: formatISO(shiftDate),
+              start_time: slotToTime(s.startSlot),
+              end_time: slotToTime(s.endSlot),
+              note: s.note || ''
+            };
+          });
+          await supabaseClient.from('shifts').insert(shiftsToInsert);
+        }
+        updateSaveIndicator('saved');
+      } catch (error) {
+        updateSaveIndicator('error');
+      }
+    }
+
+    function updateSaveIndicator(status) {
+      const indicator = document.getElementById('saveIndicator');
+      const text = document.getElementById('saveText');
+      indicator.className = 'save-indicator ' + status;
+      text.textContent = status === 'saving' ? 'Desant...' : status === 'saved' ? 'Desat' : 'Error';
+    }
+
+    function scheduleAutoSave() {
+      if (!canEdit()) return;
+      if (saveTimeout) clearTimeout(saveTimeout);
+      updateSaveIndicator('saving');
+      saveTimeout = setTimeout(saveShiftsToSupabase, 1000);
+    }
+
+    // ========== HELPERS ==========
+    function setStatus(msg, isError) {
+      const el = document.getElementById('status');
+      if (el) { el.textContent = msg; el.style.color = isError ? '#ef4444' : '#059669'; }
+    }
+
+    function formatHoursFromSlots(slots) {
+      const mins = slots * 30;
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m === 0 ? `${h} h` : `${h} h ${m} min`;
+    }
+
+    function formatHoursFromMinutes(mins) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m === 0 ? `${h} h` : `${h} h ${m} min`;
+    }
+
+    function isWorkerSelected(name) {
+      if (currentUserRole === 'treballador') return name === currentWorkerName;
+      const w = workers.find(x => x.name === name);
+      return w ? w.selected !== false : true;
+    }
+
+    function parseISODate(iso) {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function formatISO(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function formatWeekBanner(startDate) {
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 6);
+      const months = ['GENER','FEBRER','MARÇ','ABRIL','MAIG','JUNY','JULIOL','AGOST','SETEMBRE','OCTUBRE','NOVEMBRE','DESEMBRE'];
+      return `SETMANA DEL ${startDate.getDate()} AL ${endDate.getDate()} DE ${months[endDate.getMonth()]}`;
+    }
+
+    function updateSummary() {
+      const box = document.getElementById('summaryContent');
+      if (!box) return;
+      
+      const visible = shifts.filter(s => isWorkerSelected(s.worker));
+      if (!visible.length) { box.textContent = 'Cap torn encara.'; return; }
+
+      const totals = {};
+      const holidayWork = {};
+      
+      visible.forEach(s => {
+        totals[s.worker] = (totals[s.worker] || 0) + (s.endSlot - s.startSlot);
+        const shiftDate = new Date(parseISODate(currentWeekStart));
+        shiftDate.setDate(shiftDate.getDate() + s.dayIndex);
+        if (allHolidays.includes(formatISO(shiftDate))) holidayWork[s.worker] = true;
+      });
+
+      let html = '<table><tr><th>Treballador</th><th style="text-align:right;">Hores</th></tr>';
+      Object.keys(totals).sort().forEach(name => {
+        const icon = holidayWork[name] ? '<span class="holiday-warning" title="Treballa festiu">⚠️</span>' : '';
+        html += `<tr><td>${name}${icon}</td><td class="hours">${formatHoursFromSlots(totals[name])}</td></tr>`;
+      });
+      box.innerHTML = html + '</table>';
+    }
+
+    // ========== RENDER ==========
+    function renderWorkers() {
+      const cont = document.getElementById('workers');
+      if (!cont || currentUserRole === 'treballador') { cont.innerHTML = ''; return; }
+
+      cont.innerHTML = '';
+      workers.forEach(w => {
+        if (typeof w.selected === 'undefined') w.selected = true;
+        const row = document.createElement('div');
+        row.className = 'worker-row' + (w.selected ? ' selected' : '');
+
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.checked = w.selected;
+        chk.addEventListener('change', e => { w.selected = e.target.checked; renderWorkers(); renderShifts(); });
+
+        const div = document.createElement('div');
+        div.className = 'worker';
+        if (canEdit()) div.draggable = true;
+        div.dataset.worker = w.name;
+        const parts = w.name.split(' ');
+        div.dataset.initials = ((parts[0]?.charAt(0) || '') + (parts[1]?.charAt(0) || '')).toUpperCase();
+
+        const dot = document.createElement('span');
+        dot.className = 'worker-color';
+        dot.style.backgroundColor = w.color || '#3b82f6';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = w.name;
+
+        div.appendChild(dot);
+        div.appendChild(nameSpan);
+
+        if (canEdit()) {
+          div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', w.name));
+        }
+        div.addEventListener('click', () => { w.selected = !w.selected; renderWorkers(); renderShifts(); });
+
+        row.appendChild(chk);
+        row.appendChild(div);
+        cont.appendChild(row);
+      });
+    }
+
+    function buildWeekGrid() {
+      const grid = document.getElementById('weekGrid');
+      grid.innerHTML = '';
+
+      const cols = ['30px'];
+      for (let d = 0; d < 7; d++) {
+        for (let lane = 0; lane < LANES_PER_DAY; lane++) {
+          cols.push(lane === LANES_PER_DAY - 1 ? '0.6fr' : '1fr');
+        }
+      }
+      grid.style.gridTemplateColumns = cols.join(' ');
+
+      // Corner
+      const corner = document.createElement('div');
+      corner.className = 'cell';
+      corner.style.cssText = 'grid-row:1;grid-column:1;position:sticky;left:0;top:0;z-index:4;background:#fff';
+      grid.appendChild(corner);
+
+      // Day headers
+      for (let d = 0; d < 7; d++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'cell header-day day-separator';
+        dayCell.textContent = DAYS[d];
+        dayCell.dataset.dayIndex = String(d);
+        dayCell.style.cssText = `grid-row:1;grid-column:${2 + d * LANES_PER_DAY}/span ${LANES_PER_DAY};position:sticky;top:0;z-index:2`;
+        grid.appendChild(dayCell);
+      }
+
+      // Hour cells
+      for (let i = 0; i < HOUR_END - HOUR_START; i++) {
+        const hourCell = document.createElement('div');
+        hourCell.className = 'cell hour-cell';
+        hourCell.textContent = `${HOUR_START + i}:00`;
+        hourCell.style.cssText = `grid-row:${2 + i * SLOTS_PER_HOUR}/span ${SLOTS_PER_HOUR};grid-column:1;position:sticky;left:0;z-index:3;background:#e5e7eb`;
+        grid.appendChild(hourCell);
+      }
+
+      // Slot cells
+      for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
+        for (let d = 0; d < 7; d++) {
+          for (let lane = 0; lane < LANES_PER_DAY; lane++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell slot-cell' + (lane === LANES_PER_DAY - 1 ? ' narrow-col day-separator' : '');
+            cell.style.cssText = `grid-row:${2 + slot};grid-column:${2 + d * LANES_PER_DAY + lane}`;
+            cell.dataset.day = String(d);
+            cell.dataset.lane = String(lane);
+            cell.dataset.slot = String(slot);
+
+            if (canEdit()) {
+              cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('drop-target'); });
+              cell.addEventListener('dragleave', () => cell.classList.remove('drop-target'));
+              cell.addEventListener('drop', e => {
+                e.preventDefault();
+                cell.classList.remove('drop-target');
+                const workerName = e.dataTransfer.getData('text/plain');
+                if (workerName) createShift(workerName, +cell.dataset.day, +cell.dataset.lane, +cell.dataset.slot);
+              });
+            }
+
+            grid.appendChild(cell);
+          }
+        }
+      }
+    }
+
+    function adjustSlotHeight() {
+      const grid = document.getElementById('weekGrid');
+      if (!grid) return;
+      const isMobile = window.innerWidth <= 900;
+      slotHeightRuntime = isMobile ? 32 : 26;
+      grid.style.gridAutoRows = slotHeightRuntime + 'px';
+    }
+
+    function updateWeekHeaderAndHolidays(weekStartStr, holidays) {
+      if (!weekStartStr) return;
+      const startDate = parseISODate(weekStartStr);
+      const holidaySet = new Set(holidays || []);
+
+      document.getElementById('weekBanner').textContent = formatWeekBanner(startDate);
+
+      document.querySelectorAll('.header-day').forEach(el => {
+        const dayIndex = parseInt(el.dataset.dayIndex, 10);
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + dayIndex);
+        el.textContent = `${DAYS[dayIndex]} ${d.getDate()}`;
+        el.classList.toggle('holiday-day', holidaySet.has(formatISO(d)));
+      });
+
+      document.querySelectorAll('.slot-cell').forEach(cell => {
+        const dayIndex = parseInt(cell.dataset.day, 10);
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + dayIndex);
+        cell.classList.toggle('holiday-slot', holidaySet.has(formatISO(d)));
+      });
+    }
+
+    async function loadWeek() {
+      const weekDateStr = document.getElementById('weekDate').value;
+      setStatus('Carregant...', false);
+
+      try {
+        workers = await loadWorkersFromSupabase();
+        allHolidays = await loadAllHolidays();
+
+        const inputDate = parseISODate(weekDateStr);
+        const dayOfWeek = inputDate.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const weekStart = new Date(inputDate);
+        weekStart.setDate(inputDate.getDate() + diff);
+        currentWeekStart = formatISO(weekStart);
+
+        weekHolidays = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(weekStart);
+          d.setDate(d.getDate() + i);
+          if (allHolidays.includes(formatISO(d))) weekHolidays.push(formatISO(d));
+        }
+
+        document.getElementById('weekDate').value = currentWeekStart;
+        document.getElementById('holidayDate').value = currentWeekStart;
+        const d2 = new Date(weekStart);
+        d2.setDate(d2.getDate() + 6);
+        document.getElementById('reportFrom').value = currentWeekStart;
+        document.getElementById('reportTo').value = formatISO(d2);
+
+        renderWorkers();
+
+        const shiftsData = await loadShiftsFromSupabase(currentWeekStart);
+        shifts = [];
+        nextId = 1;
+
+        shiftsData.forEach(s => {
+          const dayIndex = Math.round((parseISODate(s.date) - parseISODate(currentWeekStart)) / 86400000);
+          if (dayIndex < 0 || dayIndex > 6) return;
+
+          const startSlot = timeToSlot(s.start_time);
+          const endSlot = timeToSlot(s.end_time);
+          if (isNaN(startSlot) || isNaN(endSlot)) return;
+
+          let laneIndex = 0;
+          for (let lane = 0; lane < LANES_PER_DAY; lane++) {
+            if (!hasOverlap(dayIndex, lane, startSlot, endSlot, null)) { laneIndex = lane; break; }
+          }
+
+          const w = workers.find(x => x.name === s.worker_name);
+          shifts.push({
+            id: nextId++,
+            worker: s.worker_name,
+            color: w?.color || '#3b82f6',
+            dayIndex, laneIndex, startSlot, endSlot,
+            note: s.note || ''
+          });
+        });
+
+        renderShifts();
+        updateWeekHeaderAndHolidays(currentWeekStart, weekHolidays);
+        adjustSlotHeight();
+        setStatus('✅ Carregat', false);
+        updateSaveIndicator('saved');
+      } catch (error) {
+        setStatus('❌ Error: ' + error.message, true);
+      }
+    }
+
+    function timeToSlot(timeStr) {
+      if (!timeStr) return NaN;
+      const [h, m] = timeStr.split(':').map(Number);
+      return ((h * 60 + m) - HOUR_START * 60) / SLOT_MINUTES;
+    }
+
+    function slotToTime(slot) {
+      const totalMinutes = HOUR_START * 60 + slot * SLOT_MINUTES;
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      return `${String(h).padStart(2, '0')}:${m === 0 ? '00' : '30'}`;
+    }
+
+    function hasOverlap(dayIndex, laneIndex, startSlot, endSlot, excludeId) {
+      return shifts.some(s => s.dayIndex === dayIndex && s.laneIndex === laneIndex && s.id !== excludeId && !(endSlot <= s.startSlot || startSlot >= s.endSlot));
+    }
+
+    function createShift(workerName, dayIndex, laneIndex, startSlot) {
+      if (!canEdit()) return;
+      let endSlot = startSlot + MIN_SLOTS_CREATE;
+      if (endSlot > TOTAL_SLOTS) endSlot = TOTAL_SLOTS;
+      if (hasOverlap(dayIndex, laneIndex, startSlot, endSlot, null)) { setStatus('Solapament', true); return; }
+
+      const w = workers.find(x => x.name === workerName);
+      shifts.push({ id: nextId++, worker: workerName, color: w?.color || '#3b82f6', dayIndex, laneIndex, startSlot, endSlot, note: '' });
+      renderShifts();
+      scheduleAutoSave();
+      setStatus(`Torn creat: ${workerName}`, false);
+    }
+
+    function renderShifts() {
+      const grid = document.getElementById('weekGrid');
+      grid.querySelectorAll('.shift-block').forEach(b => b.remove());
+
+      shifts.filter(s => isWorkerSelected(s.worker)).forEach(shift => {
+        const block = document.createElement('div');
+        block.className = 'shift-block' + (!canEdit() ? ' readonly' : '');
+        block.style.cssText = `grid-row:${2 + shift.startSlot}/${2 + shift.endSlot};grid-column:${2 + shift.dayIndex * LANES_PER_DAY + shift.laneIndex};border-color:${shift.color};background-color:${hexToRgba(shift.color, 0.18)}`;
+
+        const mainRow = document.createElement('div');
+        mainRow.className = 'shift-main-row';
+
+        const main = document.createElement('div');
+        main.className = 'shift-main';
+        main.textContent = `${shift.worker} (${slotToTime(shift.startSlot)} - ${slotToTime(shift.endSlot)})`;
+        mainRow.appendChild(main);
+
+        if (canEdit()) {
+          const delBtn = document.createElement('button');
+          delBtn.className = 'shift-del';
+          delBtn.textContent = '✕';
+          delBtn.style.pointerEvents = 'auto';
+          delBtn.addEventListener('click', e => { e.stopPropagation(); deleteShift(shift.id); });
+          mainRow.appendChild(delBtn);
+        }
+
+        block.appendChild(mainRow);
+
+        if (shift.note) {
+          const noteDiv = document.createElement('div');
+          noteDiv.className = 'shift-note';
+          noteDiv.textContent = shift.note;
+          block.appendChild(noteDiv);
+        }
+
+        if (canEdit()) {
+          // Handles
+          const handleTop = document.createElement('div');
+          handleTop.className = 'handle top';
+          handleTop.addEventListener('pointerdown', e => startResize(e, shift.id, 'start'));
+          block.appendChild(handleTop);
+
+          const handleBottom = document.createElement('div');
+          handleBottom.className = 'handle bottom';
+          handleBottom.addEventListener('pointerdown', e => startResize(e, shift.id, 'end'));
+          block.appendChild(handleBottom);
+
+          block.addEventListener('dblclick', () => editNote(shift.id));
+          block.addEventListener('pointerdown', e => {
+            if (!e.target.classList.contains('handle') && !e.target.classList.contains('shift-del')) startMove(e, shift.id);
+          });
+        }
+
+        grid.appendChild(block);
+      });
+
+      updateSummary();
+    }
+
+    function deleteShift(id) {
+      if (!canEdit()) return;
+      shifts = shifts.filter(s => s.id !== id);
+      renderShifts();
+      scheduleAutoSave();
+    }
+
+    function editNote(id) {
+      if (!canEdit()) return;
+      const shift = shifts.find(s => s.id === id);
+      if (!shift) return;
+      const text = prompt('Nota:', shift.note || '');
+      if (text !== null) { shift.note = text.trim(); renderShifts(); scheduleAutoSave(); }
+    }
+
+    function startResize(e, id, side) {
+      if (!canEdit()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resizing = { id, side };
+      moving = null;
+    }
+
+    function startMove(e, id) {
+      if (!canEdit()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const shift = shifts.find(s => s.id === id);
+      if (!shift) return;
+      resizing = null;
+
+      const grid = document.getElementById('weekGrid');
+      const rect = grid.getBoundingClientRect();
+      const row = Math.floor((e.clientY - rect.top) / slotHeightRuntime);
+      moving = { id, offsetSlots: row - 1 - shift.startSlot };
+    }
+
+    function onPointerMoveGlobal(e) {
+      if (!canEdit()) return;
+      const grid = document.getElementById('weekGrid');
+      const rect = grid.getBoundingClientRect();
+      let slotIndex = Math.floor((e.clientY - rect.top) / slotHeightRuntime) - 1;
+      slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, slotIndex));
+
+      if (resizing) {
+        const shift = shifts.find(s => s.id === resizing.id);
+        if (!shift) return;
+
+        let newStart = shift.startSlot, newEnd = shift.endSlot;
+        if (resizing.side === 'start') {
+          newStart = Math.min(slotIndex, newEnd - 1);
+        } else {
+          newEnd = Math.max(slotIndex + 1, newStart + 1);
+        }
+        newEnd = Math.min(newEnd, TOTAL_SLOTS);
+
+        if (!hasOverlap(shift.dayIndex, shift.laneIndex, newStart, newEnd, shift.id)) {
+          shift.startSlot = newStart;
+          shift.endSlot = newEnd;
+          renderShifts();
+        }
+      } else if (moving) {
+        const shift = shifts.find(s => s.id === moving.id);
+        if (!shift) return;
+
+        const duration = shift.endSlot - shift.startSlot;
+        let newStart = slotIndex - moving.offsetSlots;
+        newStart = Math.max(0, Math.min(newStart, TOTAL_SLOTS - duration));
+        const newEnd = newStart + duration;
+
+        let targetDay = shift.dayIndex, targetLane = shift.laneIndex;
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        if (el?.classList.contains('slot-cell') || el?.closest('.slot-cell')) {
+          const cell = el.classList.contains('slot-cell') ? el : el.closest('.slot-cell');
+          targetDay = +cell.dataset.day;
+          targetLane = +cell.dataset.lane;
+        }
+
+        if (!hasOverlap(targetDay, targetLane, newStart, newEnd, shift.id)) {
+          shift.startSlot = newStart;
+          shift.endSlot = newEnd;
+          shift.dayIndex = targetDay;
+          shift.laneIndex = targetLane;
+          renderShifts();
+        }
+      }
+    }
+
+    function onPointerUpGlobal() {
+      if (resizing || moving) {
+        resizing = null;
+        moving = null;
+        scheduleAutoSave();
+      }
+    }
+
+    function clearShifts() {
+      if (!canEdit()) return;
+      if (confirm('Netejar tots els torns?')) { shifts = []; renderShifts(); scheduleAutoSave(); }
+    }
+
+    function copyWeek() {
+      if (!canEdit()) return;
+      copiedWeek = JSON.parse(JSON.stringify(shifts));
+      setStatus('Setmana copiada', false);
+    }
+
+    function pasteWeek() {
+      if (!canEdit() || !copiedWeek?.length) return;
+      if (confirm('Substituir torns?')) {
+        shifts = JSON.parse(JSON.stringify(copiedWeek));
+        nextId = Math.max(...shifts.map(s => s.id)) + 1;
+        renderShifts();
+        scheduleAutoSave();
+        setStatus('Setmana enganxada', false);
+      }
+    }
+
+    async function generateReport() {
+      const from = document.getElementById('reportFrom').value;
+      const to = document.getElementById('reportTo').value;
+      if (!from || !to) { setStatus('Selecciona dates', true); return; }
+
+      const { data } = await supabaseClient.from('shifts').select('*').gte('date', from).lte('date', to).order('date');
+      if (!data?.length) { setStatus('No hi ha torns', true); return; }
+
+      const totals = {}, holidayWork = {};
+      data.forEach(s => {
+        const [sh, sm] = s.start_time.split(':').map(Number);
+        const [eh, em] = s.end_time.split(':').map(Number);
+        totals[s.worker_name] = (totals[s.worker_name] || 0) + (eh * 60 + em) - (sh * 60 + sm);
+        if (allHolidays.includes(s.date)) holidayWork[s.worker_name] = true;
+      });
+
+      const html = `<!DOCTYPE html><html><head><title>Resum</title><style>body{font-family:system-ui;padding:40px}table{border-collapse:collapse;width:100%;max-width:600px}th,td{padding:12px;border-bottom:1px solid #e5e7eb}th{background:#f9fafb}.hours{text-align:right}.total{font-weight:600;background:#dbeafe}.warn{color:#dc2626}</style></head><body><h1>Resum d'hores</h1><p>${from} - ${to}</p><table><tr><th>Treballador</th><th class="hours">Hores</th></tr>${Object.entries(totals).sort((a,b)=>a[0].localeCompare(b[0])).map(([n,m])=>`<tr><td>${n}${holidayWork[n]?'<span class="warn"> ⚠️</span>':''}</td><td class="hours">${formatHoursFromMinutes(m)}</td></tr>`).join('')}<tr class="total"><td>TOTAL</td><td class="hours">${formatHoursFromMinutes(Object.values(totals).reduce((a,b)=>a+b,0))}</td></tr></table><br><button onclick="print()">Imprimir</button></body></html>`;
+      
+      const win = window.open('', '_blank');
+      win.document.write(html);
+      win.document.close();
+    }
+
+    function hexToRgba(hex, alpha) {
+      let c = (hex || '').replace('#', '');
+      if (c.length === 3) c = c.split('').map(ch => ch + ch).join('');
+      return `rgba(${parseInt(c.slice(0,2),16)},${parseInt(c.slice(2,4),16)},${parseInt(c.slice(4,6),16)},${alpha})`;
+    }
   </script>
 </body>
 </html>
