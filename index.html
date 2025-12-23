@@ -1831,7 +1831,7 @@
         const isEditing = selectedShiftForEdit === shift.id;
         const block = document.createElement('div');
         block.className = 'shift-block' + (!canEdit() ? ' readonly' : '') + (isEditing ? ' editing-mode' : '');
-        block.style.cssText = `grid-row:${2 + shift.startSlot}/${2 + shift.endSlot};grid-column:${2 + shift.dayIndex * LANES_PER_DAY + shift.laneIndex};border-color:${shift.color};background-color:${hexToRgba(shift.color, 0.18)}`;
+        block.style.cssText = `grid-row:${2 + shift.startSlot}/${2 + shift.endSlot};grid-column:${2 + shift.dayIndex * LANES_PER_DAY + shift.laneIndex};border-color:${shift.color};background-color:${hexToRgba(shift.color, 0.70)}`;
 
         const mainRow = document.createElement('div');
         mainRow.className = 'shift-main-row';
