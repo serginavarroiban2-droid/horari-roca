@@ -2,21 +2,31 @@
 <html lang="ca">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>HORARI ROCA · Planner</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     
     html, body {
       margin: 0;
+      padding: 0;
       height: 100%;
+      height: 100dvh;
       overflow: hidden;
+      overscroll-behavior: none;
     }
 
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f3f4f6;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
     }
 
     /* ========== LOGIN SCREEN ========== */
@@ -24,7 +34,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      height: 100dvh;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 
@@ -38,19 +48,8 @@
       margin: 20px;
     }
 
-    .login-box h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
-      color: #1f2937;
-      text-align: center;
-    }
-
-    .login-box p {
-      margin: 0 0 24px;
-      color: #6b7280;
-      text-align: center;
-      font-size: 14px;
-    }
+    .login-box h1 { margin: 0 0 8px; font-size: 28px; color: #1f2937; text-align: center; }
+    .login-box p { margin: 0 0 24px; color: #6b7280; text-align: center; font-size: 14px; }
 
     .login-box input {
       width: 100%;
@@ -59,13 +58,9 @@
       border-radius: 8px;
       font-size: 16px;
       margin-bottom: 12px;
-      transition: border-color 0.2s;
     }
 
-    .login-box input:focus {
-      outline: none;
-      border-color: #667eea;
-    }
+    .login-box input:focus { outline: none; border-color: #667eea; }
 
     .login-box button {
       width: 100%;
@@ -77,19 +72,9 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .login-box button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px -10px rgba(102, 126, 234, 0.5);
-    }
-
-    .login-box button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .login-box button:disabled { opacity: 0.6; }
 
     .login-error {
       background: #fef2f2;
@@ -102,13 +87,10 @@
       display: none;
     }
 
-    /* ========== LOADING OVERLAY ========== */
+    /* ========== LOADING ========== */
     .loading-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      inset: 0;
       background: rgba(255, 255, 255, 0.9);
       display: flex;
       align-items: center;
@@ -125,111 +107,127 @@
       animation: spin 1s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
     /* ========== USER BAR ========== */
     .user-bar {
       background: #1f2937;
       color: white;
-      padding: 8px 16px;
+      padding: 6px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 13px;
+      font-size: 12px;
+      flex-shrink: 0;
+      padding-top: max(6px, env(safe-area-inset-top));
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
-    .user-bar .user-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .user-bar .user-info { display: flex; align-items: center; gap: 6px; }
 
     .user-bar .user-avatar {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       background: #667eea;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 600;
-      font-size: 12px;
+      font-size: 11px;
     }
 
     .user-bar .user-role {
       background: #374151;
-      padding: 2px 8px;
+      padding: 2px 6px;
       border-radius: 4px;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
     }
 
-    .user-bar .user-role.admin {
-      background: #dc2626;
-    }
-
-    .user-bar .user-role.encarregat {
-      background: #2563eb;
-    }
-
-    .user-bar .user-role.treballador {
-      background: #059669;
-    }
+    .user-bar .user-role.admin { background: #dc2626; }
+    .user-bar .user-role.encarregat { background: #2563eb; }
+    .user-bar .user-role.treballador { background: #059669; }
 
     .user-bar button {
       background: #374151;
       border: none;
       color: white;
-      padding: 6px 12px;
+      padding: 4px 10px;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
-      transition: background 0.2s;
     }
 
-    .user-bar button:hover {
-      background: #4b5563;
-    }
-
-    .save-indicator {
+    .user-bar .bar-controls {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .user-bar .bar-controls label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
       color: #9ca3af;
     }
 
-    .save-indicator.saving {
-      color: #fbbf24;
+    .user-bar .bar-controls input[type="date"] {
+      background: #374151;
+      border: 1px solid #4b5563;
+      color: white;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
     }
 
-    .save-indicator.saved {
-      color: #10b981;
+    .user-bar .holiday-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .save-indicator.error {
-      color: #ef4444;
+    .user-bar .holiday-btn {
+      padding: 3px 6px;
+      font-size: 10px;
+      border-radius: 4px;
     }
 
+    .user-bar .holiday-btn.add { background: #dc2626; }
+    .user-bar .holiday-btn.remove { background: #6b7280; }
+
+    .save-indicator { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #9ca3af; }
+    .save-indicator.saving { color: #fbbf24; }
+    .save-indicator.saved { color: #10b981; }
+    .save-indicator.error { color: #ef4444; }
+
+    #weekBanner { 
+      font-size: 11px; 
+      font-weight: 600; 
+      text-transform: uppercase; 
+      color: #60a5fa;
+      white-space: nowrap;
+    }
+
+    /* ========== MAIN APP ========== */
     .app {
       display: flex;
-      height: calc(100vh - 44px);
-      height: calc(100dvh - 44px);
+      height: calc(100dvh - 40px);
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
-    /* ========== DESKTOP/TABLET NORMAL ========== */
     .left {
       width: 240px;
       border-right: 2px solid #9ca3af;
       background: #fff;
       padding: 10px;
       overflow-y: auto;
+      flex-shrink: 0;
     }
 
     .right {
@@ -242,16 +240,8 @@
       min-height: 0;
     }
 
-    h2 {
-      margin: 0 0 8px;
-      font-size: 16px;
-    }
-
-    .workers-info {
-      font-size: 11px;
-      color: #6b7280;
-      margin: 0 0 6px;
-    }
+    h2 { margin: 0 0 8px; font-size: 16px; }
+    .workers-info { font-size: 11px; color: #6b7280; margin: 0 0 6px; }
 
     .worker-row {
       display: flex;
@@ -260,13 +250,8 @@
       margin-bottom: 6px;
     }
 
-    .worker-row input[type="checkbox"] {
-      margin: 0;
-    }
-
-    .worker-row.selected .worker {
-      box-shadow: 0 0 0 2px #111827;
-    }
+    .worker-row input[type="checkbox"] { margin: 0; }
+    .worker-row.selected .worker { box-shadow: 0 0 0 2px #111827; }
 
     .worker {
       padding: 6px 8px;
@@ -280,121 +265,30 @@
       gap: 6px;
       flex: 1;
       position: relative;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
 
-    .worker:active { cursor: grabbing; }
-
-    .worker-color {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
+    .worker.active-for-placement {
+      box-shadow: 0 0 0 3px #3b82f6 !important;
+      animation: pulse-worker 1s ease-in-out infinite;
     }
 
-    #summary {
-      margin-top: 10px;
-      font-size: 11px;
+    @keyframes pulse-worker {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
     }
 
-    #summary h3 {
-      margin: 6px 0 4px;
-      font-size: 12px;
-    }
+    .worker-color { width: 10px; height: 10px; border-radius: 999px; }
 
-    #summary table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    #summary th, #summary td {
-      padding: 2px 4px;
-      text-align: left;
-    }
-
-    #summary th {
-      border-bottom: 1px solid #d1d5db;
-      font-weight: 600;
-    }
-
-    #summary td.hours {
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    #summary .holiday-warning {
-      color: #dc2626;
-      font-size: 14px;
-      margin-left: 4px;
-    }
-
-    .top-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      flex-wrap: wrap;
-    }
-
-    .top-bar input[type="date"] {
-      font-size: 13px;
-      padding: 2px 4px;
-    }
-
-    #weekDate.holiday-week {
-      border-color: #ef4444;
-      background: #fee2e2;
-    }
-
-    #weekBanner {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: #111827;
-    }
-
-    /* ========== HOLIDAY PICKER ========== */
-    .holiday-picker {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-left: auto;
-    }
-
-    .holiday-picker label {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    .holiday-picker input[type="date"] {
-      font-size: 12px;
-      padding: 2px 4px;
-    }
-
-    .holiday-picker button {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid #d1d5db;
-      cursor: pointer;
-    }
-
-    .holiday-picker .add-holiday {
-      background: #fef2f2;
-      border-color: #fca5a5;
-      color: #dc2626;
-    }
-
-    .holiday-picker .add-holiday:hover {
-      background: #fee2e2;
-    }
-
-    .holiday-picker .remove-holiday {
-      background: #f9fafb;
-      color: #6b7280;
-    }
-
-    .holiday-picker .remove-holiday:hover {
-      background: #f3f4f6;
-    }
+    #summary { margin-top: 10px; font-size: 11px; }
+    #summary h3 { margin: 6px 0 4px; font-size: 12px; }
+    #summary table { width: 100%; border-collapse: collapse; }
+    #summary th, #summary td { padding: 2px 4px; text-align: left; }
+    #summary th { border-bottom: 1px solid #d1d5db; font-weight: 600; }
+    #summary td.hours { text-align: right; }
+    #summary .holiday-warning { color: #dc2626; font-size: 14px; margin-left: 4px; }
 
     .week-wrapper {
       background: #fff;
@@ -406,6 +300,7 @@
       flex-direction: column;
       gap: 6px;
       min-height: 0;
+      overflow: hidden;
     }
 
     .week-grid-wrapper {
@@ -423,10 +318,9 @@
       background: #fff;
       border-radius: 6px;
       border: 2px solid #9ca3af;
-      overflow: hidden;
-      height: 100%;
-      min-height: 0;
+      overflow: visible;
       min-width: 800px;
+      position: relative;
     }
 
     .cell {
@@ -446,11 +340,19 @@
       font-size: 12px;
       color: #111827;
       border-bottom: 2px solid #9ca3af;
+      position: sticky;
+      top: 0;
+      z-index: 20;
     }
 
-    .cell.header-day.holiday-day {
-      background: #fecaca;
-      color: #7f1d1d;
+    .cell.header-day.holiday-day { background: #fecaca; color: #7f1d1d; }
+
+    .cell.corner-cell {
+      position: sticky;
+      top: 0;
+      left: 0;
+      z-index: 30;
+      background: #fff;
     }
 
     .cell.hour-cell {
@@ -462,29 +364,18 @@
       color: #374151;
       font-size: 11px;
       border-right: 2px solid #9ca3af;
+      position: sticky;
+      left: 0;
+      z-index: 10;
     }
 
-    .cell.slot-cell {
-      background: #ffffff;
-      cursor: pointer;
-    }
+    .cell.slot-cell { background: #ffffff; cursor: pointer; }
+    .cell.slot-cell.holiday-slot { background: #fef2f2; }
+    .cell.slot-cell.drop-target { background: #bfdbfe !important; box-shadow: inset 0 0 0 2px #3b82f6; }
+    .cell.slot-cell.placement-mode { background: #dbeafe; }
 
-    .cell.slot-cell.holiday-slot {
-      background: #fef2f2;
-    }
-
-    .cell.slot-cell.drop-target {
-      background: #e0f2fe;
-      box-shadow: inset 0 0 0 1px #60a5fa;
-    }
-
-    .narrow-col {
-      background: #f9fafb;
-    }
-
-    .day-separator {
-      border-right: 2px solid #9ca3af !important;
-    }
+    .narrow-col { background: #f9fafb; }
+    .day-separator { border-right: 2px solid #9ca3af !important; }
 
     .shift-block {
       border-radius: 6px;
@@ -493,66 +384,26 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
-      border: 1px solid #3b82f6;
+      border: 2px solid #3b82f6;
       position: relative;
       cursor: move;
-    }
-
-    .shift-block.moving {
-      opacity: 0.85;
-      pointer-events: none;
-    }
-
-    .shift-block.editing {
-      animation: pulse 1s ease-in-out infinite;
-      z-index: 100;
-      box-shadow: 0 0 0 3px #3b82f6;
-    }
-
-    .shift-block.readonly {
-      cursor: default;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
-    .edit-handle {
-      position: absolute;
-      width: 60px;
-      height: 60px;
-      background: #3b82f6;
-      border: 4px solid #fff;
-      border-radius: 50%;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 32px;
-      font-weight: bold;
-      cursor: grab;
-      z-index: 200;
       touch-action: none;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       user-select: none;
       -webkit-user-select: none;
+      z-index: 5;
     }
 
-    .shift-block.editing .edit-handle {
-      display: flex !important;
+    .shift-block.readonly { cursor: default; }
+    
+    .shift-block.editing-mode {
+      animation: pulse-shift 0.8s ease-in-out infinite;
+      z-index: 100;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5);
     }
 
-    .edit-handle.top {
-      top: -30px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    .edit-handle.bottom {
-      bottom: -30px;
-      left: 50%;
-      transform: translateX(-50%);
+    @keyframes pulse-shift {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
     }
 
     .shift-main-row {
@@ -578,7 +429,6 @@
       color: #111827;
       padding: 0 2px;
       text-align: center;
-      pointer-events: none;
     }
 
     .shift-note {
@@ -590,6 +440,7 @@
       padding: 0 2px;
     }
 
+    /* Desktop handles - always visible */
     .handle {
       position: absolute;
       left: 0;
@@ -597,7 +448,8 @@
       height: 8px;
       cursor: ns-resize;
       user-select: none;
-      z-index: 10;
+      z-index: 15;
+      background: transparent;
     }
 
     .handle.top { top: 0; }
@@ -606,11 +458,42 @@
     .handle::after {
       content: '';
       display: block;
-      margin: 0 auto;
-      width: 60%;
-      height: 2px;
+      margin: 2px auto 0;
+      width: 40%;
+      height: 3px;
       border-radius: 999px;
-      background: rgba(15, 23, 42, 0.35);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .handle:hover::after {
+      background: #3b82f6;
+    }
+
+    /* Mobile handles - bigger, only in edit mode */
+    .mobile-handle {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 24px;
+      background: #3b82f6;
+      border-radius: 6px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      z-index: 200;
+      cursor: ns-resize;
+      touch-action: none;
+    }
+
+    .mobile-handle.top { top: -12px; }
+    .mobile-handle.bottom { bottom: -12px; }
+
+    .shift-block.editing-mode .mobile-handle {
+      display: flex;
     }
 
     .shift-del {
@@ -629,6 +512,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      pointer-events: auto;
     }
 
     .bottom-bar {
@@ -638,6 +522,7 @@
       margin-top: 4px;
       gap: 6px;
       flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     .bottom-bar button {
@@ -649,61 +534,190 @@
       cursor: pointer;
     }
 
-    .report-controls {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-      font-size: 11px;
+    .report-controls { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11px; }
+    .report-controls input[type="date"] { font-size: 11px; padding: 2px 4px; }
+
+    #status { font-size: 11px; color: #059669; margin-left: auto; min-height: 14px; }
+
+    /* ========== MOBILE TOAST ========== */
+    .mobile-toast {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: none;
+      text-align: center;
+      max-width: 90%;
     }
 
-    .report-controls input[type="date"] {
-      font-size: 11px;
-      padding: 2px 4px;
+    .mobile-toast.visible { display: block; animation: slideUp 0.3s ease-out; }
+
+    @keyframes slideUp {
+      from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
     }
 
-    #status {
-      font-size: 11px;
-      color: #059669;
-      margin-left: auto;
-      min-height: 14px;
-    }
-
-    .red-line {
-      border-top: 2px solid #ef4444 !important;
+    .mobile-toast .toast-btn {
+      background: #ef4444;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-left: 12px;
+      font-size: 13px;
+      cursor: pointer;
     }
 
     /* ========== IMPRESSIÓ ========== */
     @media print {
       @page { size: A4 landscape; }
-      body { background: #fff; }
-      .left, .bottom-bar, .user-bar, .holiday-picker { display: none !important; }
+      body { background: #fff; position: static; }
+      .left, .bottom-bar, .user-bar, .mobile-toast { display: none !important; }
       .right { padding: 0; }
       .app { height: auto; }
       .week-wrapper { box-shadow: none; padding: 0; height: auto; }
       .week-grid { border-width: 1px; grid-auto-rows: 22px !important; }
-      .cell { font-size: 9px; }
-      .shift-main, .shift-note { font-size: 8px; }
     }
 
     /* ========== MÒBIL ========== */
     @media screen and (max-width: 900px) {
-      .holiday-picker { display: none !important; }
-      .bottom-bar { display: none !important; }
-      .left { width: 100% !important; height: 80px !important; flex-direction: row !important; overflow-x: auto !important; border-right: none !important; border-bottom: 1px solid #d1d5db !important; }
+      .user-bar { 
+        padding: 4px 8px; 
+        padding-top: max(4px, env(safe-area-inset-top)); 
+        min-height: 36px;
+      }
+      .user-bar .user-info span:first-of-type { display: none; }
+      
+      .app {
+        flex-direction: column;
+        height: calc(100dvh - 36px);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .left {
+        width: 100% !important;
+        height: 70px !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        border-right: none !important;
+        border-bottom: 1px solid #d1d5db !important;
+        padding: 4px 8px !important;
+        flex-shrink: 0 !important;
+      }
+
       h2, .workers-info, #summary { display: none !important; }
-      #workers { display: flex !important; flex-direction: row !important; gap: 8px !important; }
-      .worker-row { margin: 0 !important; flex-shrink: 0 !important; }
+
+      #workers {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        align-items: center !important;
+        height: 100% !important;
+      }
+
+      .worker-row {
+        margin: 0 !important;
+        flex-shrink: 0 !important;
+        height: 58px !important;
+      }
+
       .worker-row input[type="checkbox"] { display: none !important; }
-      .worker { width: 65px !important; height: 65px !important; border-radius: 50% !important; padding: 0 !important; font-size: 0 !important; }
-      .worker-color { width: 100% !important; height: 100% !important; border-radius: 50% !important; }
+
+      .worker {
+        width: 58px !important;
+        height: 58px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        font-size: 0 !important;
+        border-width: 3px !important;
+        justify-content: center !important;
+      }
+
+      .worker-row.selected .worker { box-shadow: 0 0 0 3px #111827 !important; }
+
+      .worker-color {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+      }
+
       .worker span { display: none !important; }
-      .worker::after { content: attr(data-initials) !important; position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 16px !important; font-weight: 700 !important; color: #111827 !important; }
-      .app { flex-direction: column !important; }
-      .right { padding: 0 !important; gap: 0 !important; }
-      .top-bar { padding: 4px 8px !important; font-size: 11px !important; }
-      .week-wrapper { padding: 0 !important; border-radius: 0 !important; }
-      .week-grid { min-width: 900px !important; grid-auto-rows: 32px !important; }
+
+      .worker::after {
+        content: attr(data-initials) !important;
+        position: absolute !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+      }
+
+      .right {
+        flex: 1 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        min-height: 0 !important;
+      }
+
+      .bottom-bar { display: none !important; }
+
+      .week-wrapper {
+        flex: 1 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        min-height: 0 !important;
+      }
+
+      .week-grid-wrapper {
+        flex: 1 !important;
+        height: 100% !important;
+      }
+
+      .week-grid {
+        min-width: 900px !important;
+        grid-auto-rows: 28px !important;
+        border: none !important;
+        border-radius: 0 !important;
+      }
+
+      .cell.header-day {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+
+      .cell.hour-cell {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+      }
+
+      .cell.corner-cell {
+        position: sticky;
+        top: 0;
+        left: 0;
+        z-index: 30;
+      }
+
+      .shift-block { border-width: 2px !important; }
+      .shift-main { font-size: 9px !important; }
+      .shift-del { min-width: 28px !important; height: 28px !important; font-size: 16px !important; padding: 4px !important; }
+
+      /* Hide desktop handles on mobile */
+      .handle { display: none !important; }
     }
   </style>
 </head>
@@ -742,10 +756,23 @@
         <span id="userName">Usuari</span>
         <span class="user-role" id="userRole">-</span>
       </div>
+
+      <div class="bar-controls">
+        <label>Setmana: <input type="date" id="weekDate"></label>
+        <span id="weekBanner"></span>
+        
+        <div class="holiday-controls" id="holidayControls">
+          <label>Festiu: <input type="date" id="holidayDate"></label>
+          <button class="holiday-btn add" onclick="addHoliday()">+</button>
+          <button class="holiday-btn remove" onclick="removeHoliday()">−</button>
+        </div>
+      </div>
+
       <div class="save-indicator" id="saveIndicator">
         <span>●</span> <span id="saveText">Desat</span>
       </div>
-      <button onclick="logout()">Tancar sessió</button>
+      
+      <button onclick="logout()">Sortir</button>
     </div>
 
     <div class="app">
@@ -760,17 +787,6 @@
       </div>
 
       <div class="right">
-        <div class="top-bar">
-          <label>Setmana: <input type="date" id="weekDate"></label>
-          <span id="weekBanner"></span>
-          <div class="holiday-picker" id="holidayPicker">
-            <label>Festiu:</label>
-            <input type="date" id="holidayDate">
-            <button class="add-holiday" onclick="addHoliday()">+ Afegir</button>
-            <button class="remove-holiday" onclick="removeHoliday()">- Treure</button>
-          </div>
-        </div>
-
         <div class="week-wrapper">
           <div class="week-grid-wrapper">
             <div class="week-grid" id="weekGrid"></div>
@@ -789,6 +805,11 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="mobile-toast" id="mobileToast">
+      <span id="toastMessage"></span>
+      <button class="toast-btn" onclick="cancelMobileAction()">Cancel·lar</button>
     </div>
   </div>
 
@@ -812,6 +833,7 @@
     const MIN_SLOTS_CREATE = 5 * SLOTS_PER_HOUR;
     const DAYS = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
     const LANES_PER_DAY = 5;
+    const LONG_PRESS_DURATION = 500;
 
     let workers = [];
     let shifts = [];
@@ -822,11 +844,16 @@
     let copiedWeek = null;
     let weekHolidays = [];
     let allHolidays = [];
-    let editingShiftId = null;
     let saveTimeout = null;
     let slotHeightRuntime = 26;
 
-    const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth <= 900;
+    // Mobile state
+    let mobileMode = null;
+    let selectedWorkerForPlacement = null;
+    let selectedShiftForEdit = null;
+    let longPressTimer = null;
+
+    const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth <= 900 || ('ontouchstart' in window);
 
     // ========== INICIALITZACIÓ ==========
     document.addEventListener('DOMContentLoaded', async () => {
@@ -867,12 +894,7 @@
     // ========== ROLS ==========
     async function loadUserProfile() {
       try {
-        const { data, error } = await supabaseClient
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .single();
-
+        const { data } = await supabaseClient.from('user_profiles').select('*').eq('user_id', currentUser.id).single();
         if (data) {
           currentUserRole = data.role || 'treballador';
           currentUserName = data.name || currentUser.email;
@@ -888,26 +910,22 @@
     }
 
     function canEdit() { return currentUserRole === 'admin'; }
-    function canViewAll() { return currentUserRole === 'admin' || currentUserRole === 'encarregat'; }
 
     function applyRoleRestrictions() {
-      const holidayPicker = document.getElementById('holidayPicker');
+      const holidayControls = document.getElementById('holidayControls');
       const bottomBar = document.getElementById('bottomBar');
       const leftPanel = document.getElementById('leftPanel');
-      const workersInfo = document.getElementById('workersInfo');
 
       if (currentUserRole === 'admin') {
-        holidayPicker.classList.remove('hidden');
+        holidayControls.classList.remove('hidden');
         bottomBar.classList.remove('hidden');
         leftPanel.classList.remove('hidden');
-        workersInfo.textContent = 'Arrossega per crear torns. Doble clic per afegir nota.';
       } else if (currentUserRole === 'encarregat') {
-        holidayPicker.classList.add('hidden');
+        holidayControls.classList.add('hidden');
         bottomBar.classList.add('hidden');
         leftPanel.classList.remove('hidden');
-        workersInfo.textContent = 'Mode visualització (només lectura).';
       } else {
-        holidayPicker.classList.add('hidden');
+        holidayControls.classList.add('hidden');
         bottomBar.classList.add('hidden');
         leftPanel.classList.add('hidden');
       }
@@ -976,13 +994,174 @@
       buildWeekGrid();
       loadWeek();
 
-      if (canEdit()) {
-        document.addEventListener('pointermove', onPointerMoveGlobal);
-        document.addEventListener('pointerup', onPointerUpGlobal);
-      }
+      // Desktop events
+      document.addEventListener('pointermove', onPointerMoveGlobal);
+      document.addEventListener('pointerup', onPointerUpGlobal);
+
+      // Cancel mobile action on tap outside
+      document.addEventListener('click', (e) => {
+        if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast') && !e.target.closest('.mobile-handle')) {
+          cancelMobileAction();
+        }
+      });
 
       window.addEventListener('resize', adjustSlotHeight);
       adjustSlotHeight();
+    }
+
+    // ========== MOBILE ACTIONS ==========
+    function showToast(message) {
+      const toast = document.getElementById('mobileToast');
+      document.getElementById('toastMessage').textContent = message;
+      toast.classList.add('visible');
+    }
+
+    function hideToast() {
+      document.getElementById('mobileToast').classList.remove('visible');
+    }
+
+    function cancelMobileAction() {
+      if (selectedWorkerForPlacement) {
+        const workerEl = document.querySelector(`.worker[data-worker="${selectedWorkerForPlacement}"]`);
+        if (workerEl) workerEl.classList.remove('active-for-placement');
+      }
+      document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
+      
+      mobileMode = null;
+      selectedWorkerForPlacement = null;
+      selectedShiftForEdit = null;
+      hideToast();
+      renderShifts();
+    }
+
+    function startWorkerLongPress(workerName, element) {
+      if (!canEdit() || !isMobileDevice) return;
+      
+      longPressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        cancelMobileAction();
+        mobileMode = 'placing';
+        selectedWorkerForPlacement = workerName;
+        element.classList.add('active-for-placement');
+        
+        document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
+        showToast('👆 Toca on vols posar el torn');
+      }, LONG_PRESS_DURATION);
+    }
+
+    function startShiftLongPress(shiftId) {
+      if (!canEdit() || !isMobileDevice) return;
+      
+      longPressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        cancelMobileAction();
+        mobileMode = 'editing';
+        selectedShiftForEdit = shiftId;
+        
+        document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
+        showToast('📍 Toca destí | Arrossega ═ per estirar');
+        renderShifts();
+      }, LONG_PRESS_DURATION);
+    }
+
+    function clearLongPress() {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    function handleCellTapMobile(dayIndex, laneIndex, slotIndex) {
+      if (!canEdit() || !isMobileDevice) return;
+      
+      if (mobileMode === 'placing' && selectedWorkerForPlacement) {
+        createShift(selectedWorkerForPlacement, dayIndex, laneIndex, slotIndex);
+        cancelMobileAction();
+      } else if (mobileMode === 'editing' && selectedShiftForEdit !== null) {
+        moveShiftTo(selectedShiftForEdit, dayIndex, laneIndex, slotIndex);
+        cancelMobileAction();
+      }
+    }
+
+    function moveShiftTo(shiftId, dayIndex, laneIndex, slotIndex) {
+      const shift = shifts.find(s => s.id === shiftId);
+      if (!shift) return;
+      
+      const duration = shift.endSlot - shift.startSlot;
+      let newStart = slotIndex;
+      let newEnd = newStart + duration;
+      
+      if (newEnd > TOTAL_SLOTS) {
+        newEnd = TOTAL_SLOTS;
+        newStart = newEnd - duration;
+      }
+      if (newStart < 0) newStart = 0;
+      
+      if (!hasOverlap(dayIndex, laneIndex, newStart, newEnd, shiftId)) {
+        shift.dayIndex = dayIndex;
+        shift.laneIndex = laneIndex;
+        shift.startSlot = newStart;
+        shift.endSlot = newEnd;
+        renderShifts();
+        scheduleAutoSave();
+        setStatus('Torn mogut', false);
+      } else {
+        setStatus('Solapament!', true);
+      }
+    }
+
+    function startMobileResize(shiftId, side, e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const shift = shifts.find(s => s.id === shiftId);
+      if (!shift) return;
+      
+      const grid = document.getElementById('weekGrid');
+      const wrapper = grid.parentElement;
+      
+      const onMove = (ev) => {
+        ev.preventDefault();
+        
+        const touch = ev.touches ? ev.touches[0] : ev;
+        const rect = grid.getBoundingClientRect();
+        const scrollTop = wrapper.scrollTop;
+        const y = touch.clientY - rect.top + scrollTop;
+        let slotIndex = Math.floor(y / slotHeightRuntime) - 1;
+        slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, slotIndex));
+        
+        let newStart = shift.startSlot, newEnd = shift.endSlot;
+        
+        if (side === 'start') {
+          newStart = Math.min(slotIndex, newEnd - 1);
+          if (newStart < 0) newStart = 0;
+        } else {
+          newEnd = Math.max(slotIndex + 1, newStart + 1);
+          if (newEnd > TOTAL_SLOTS) newEnd = TOTAL_SLOTS;
+        }
+        
+        if (!hasOverlap(shift.dayIndex, shift.laneIndex, newStart, newEnd, shift.id)) {
+          shift.startSlot = newStart;
+          shift.endSlot = newEnd;
+          renderShifts();
+        }
+      };
+      
+      const onEnd = () => {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onEnd);
+        scheduleAutoSave();
+        setStatus('Torn redimensionat', false);
+      };
+      
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd);
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
     }
 
     // ========== FESTIUS ==========
@@ -1109,8 +1288,8 @@
     function formatWeekBanner(startDate) {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 6);
-      const months = ['GENER','FEBRER','MARÇ','ABRIL','MAIG','JUNY','JULIOL','AGOST','SETEMBRE','OCTUBRE','NOVEMBRE','DESEMBRE'];
-      return `SETMANA DEL ${startDate.getDate()} AL ${endDate.getDate()} DE ${months[endDate.getMonth()]}`;
+      const months = ['GEN','FEB','MAR','ABR','MAI','JUN','JUL','AGO','SET','OCT','NOV','DES'];
+      return `${startDate.getDate()}-${endDate.getDate()} ${months[endDate.getMonth()]}`;
     }
 
     function updateSummary() {
@@ -1132,7 +1311,7 @@
 
       let html = '<table><tr><th>Treballador</th><th style="text-align:right;">Hores</th></tr>';
       Object.keys(totals).sort().forEach(name => {
-        const icon = holidayWork[name] ? '<span class="holiday-warning" title="Treballa festiu">⚠️</span>' : '';
+        const icon = holidayWork[name] ? '<span class="holiday-warning">⚠️</span>' : '';
         html += `<tr><td>${name}${icon}</td><td class="hours">${formatHoursFromSlots(totals[name])}</td></tr>`;
       });
       box.innerHTML = html + '</table>';
@@ -1156,7 +1335,7 @@
 
         const div = document.createElement('div');
         div.className = 'worker';
-        if (canEdit()) div.draggable = true;
+        if (canEdit() && !isMobileDevice) div.draggable = true;
         div.dataset.worker = w.name;
         const parts = w.name.split(' ');
         div.dataset.initials = ((parts[0]?.charAt(0) || '') + (parts[1]?.charAt(0) || '')).toUpperCase();
@@ -1172,9 +1351,22 @@
         div.appendChild(nameSpan);
 
         if (canEdit()) {
-          div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', w.name));
+          if (!isMobileDevice) {
+            div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', w.name));
+          } else {
+            div.addEventListener('touchstart', () => startWorkerLongPress(w.name, div), { passive: true });
+            div.addEventListener('touchend', clearLongPress);
+            div.addEventListener('touchcancel', clearLongPress);
+            div.addEventListener('touchmove', clearLongPress);
+          }
         }
-        div.addEventListener('click', () => { w.selected = !w.selected; renderWorkers(); renderShifts(); });
+        
+        div.addEventListener('click', () => {
+          if (mobileMode) return;
+          w.selected = !w.selected;
+          renderWorkers();
+          renderShifts();
+        });
 
         row.appendChild(chk);
         row.appendChild(div);
@@ -1194,10 +1386,10 @@
       }
       grid.style.gridTemplateColumns = cols.join(' ');
 
-      // Corner
+      // Corner cell
       const corner = document.createElement('div');
-      corner.className = 'cell';
-      corner.style.cssText = 'grid-row:1;grid-column:1;position:sticky;left:0;top:0;z-index:4;background:#fff';
+      corner.className = 'cell corner-cell';
+      corner.style.cssText = 'grid-row:1;grid-column:1;';
       grid.appendChild(corner);
 
       // Day headers
@@ -1206,7 +1398,7 @@
         dayCell.className = 'cell header-day day-separator';
         dayCell.textContent = DAYS[d];
         dayCell.dataset.dayIndex = String(d);
-        dayCell.style.cssText = `grid-row:1;grid-column:${2 + d * LANES_PER_DAY}/span ${LANES_PER_DAY};position:sticky;top:0;z-index:2`;
+        dayCell.style.cssText = `grid-row:1;grid-column:${2 + d * LANES_PER_DAY}/span ${LANES_PER_DAY};`;
         grid.appendChild(dayCell);
       }
 
@@ -1215,7 +1407,7 @@
         const hourCell = document.createElement('div');
         hourCell.className = 'cell hour-cell';
         hourCell.textContent = `${HOUR_START + i}:00`;
-        hourCell.style.cssText = `grid-row:${2 + i * SLOTS_PER_HOUR}/span ${SLOTS_PER_HOUR};grid-column:1;position:sticky;left:0;z-index:3;background:#e5e7eb`;
+        hourCell.style.cssText = `grid-row:${2 + i * SLOTS_PER_HOUR}/span ${SLOTS_PER_HOUR};grid-column:1;`;
         grid.appendChild(hourCell);
       }
 
@@ -1231,14 +1423,18 @@
             cell.dataset.slot = String(slot);
 
             if (canEdit()) {
-              cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('drop-target'); });
-              cell.addEventListener('dragleave', () => cell.classList.remove('drop-target'));
-              cell.addEventListener('drop', e => {
-                e.preventDefault();
-                cell.classList.remove('drop-target');
-                const workerName = e.dataTransfer.getData('text/plain');
-                if (workerName) createShift(workerName, +cell.dataset.day, +cell.dataset.lane, +cell.dataset.slot);
-              });
+              if (!isMobileDevice) {
+                cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('drop-target'); });
+                cell.addEventListener('dragleave', () => cell.classList.remove('drop-target'));
+                cell.addEventListener('drop', e => {
+                  e.preventDefault();
+                  cell.classList.remove('drop-target');
+                  const workerName = e.dataTransfer.getData('text/plain');
+                  if (workerName) createShift(workerName, +cell.dataset.day, +cell.dataset.lane, +cell.dataset.slot);
+                });
+              } else {
+                cell.addEventListener('click', () => handleCellTapMobile(+cell.dataset.day, +cell.dataset.lane, +cell.dataset.slot));
+              }
             }
 
             grid.appendChild(cell);
@@ -1250,8 +1446,7 @@
     function adjustSlotHeight() {
       const grid = document.getElementById('weekGrid');
       if (!grid) return;
-      const isMobile = window.innerWidth <= 900;
-      slotHeightRuntime = isMobile ? 32 : 26;
+      slotHeightRuntime = window.innerWidth <= 900 ? 28 : 26;
       grid.style.gridAutoRows = slotHeightRuntime + 'px';
     }
 
@@ -1381,8 +1576,9 @@
       grid.querySelectorAll('.shift-block').forEach(b => b.remove());
 
       shifts.filter(s => isWorkerSelected(s.worker)).forEach(shift => {
+        const isEditing = selectedShiftForEdit === shift.id;
         const block = document.createElement('div');
-        block.className = 'shift-block' + (!canEdit() ? ' readonly' : '');
+        block.className = 'shift-block' + (!canEdit() ? ' readonly' : '') + (isEditing ? ' editing-mode' : '');
         block.style.cssText = `grid-row:${2 + shift.startSlot}/${2 + shift.endSlot};grid-column:${2 + shift.dayIndex * LANES_PER_DAY + shift.laneIndex};border-color:${shift.color};background-color:${hexToRgba(shift.color, 0.18)}`;
 
         const mainRow = document.createElement('div');
@@ -1397,8 +1593,7 @@
           const delBtn = document.createElement('button');
           delBtn.className = 'shift-del';
           delBtn.textContent = '✕';
-          delBtn.style.pointerEvents = 'auto';
-          delBtn.addEventListener('click', e => { e.stopPropagation(); deleteShift(shift.id); });
+          delBtn.addEventListener('click', e => { e.stopPropagation(); cancelMobileAction(); deleteShift(shift.id); });
           mainRow.appendChild(delBtn);
         }
 
@@ -1412,21 +1607,61 @@
         }
 
         if (canEdit()) {
-          // Handles
+          // Desktop handles (always visible on desktop)
           const handleTop = document.createElement('div');
           handleTop.className = 'handle top';
-          handleTop.addEventListener('pointerdown', e => startResize(e, shift.id, 'start'));
+          handleTop.addEventListener('pointerdown', e => { if (!isMobileDevice) startResize(e, shift.id, 'start'); });
           block.appendChild(handleTop);
 
           const handleBottom = document.createElement('div');
           handleBottom.className = 'handle bottom';
-          handleBottom.addEventListener('pointerdown', e => startResize(e, shift.id, 'end'));
+          handleBottom.addEventListener('pointerdown', e => { if (!isMobileDevice) startResize(e, shift.id, 'end'); });
           block.appendChild(handleBottom);
 
-          block.addEventListener('dblclick', () => editNote(shift.id));
-          block.addEventListener('pointerdown', e => {
-            if (!e.target.classList.contains('handle') && !e.target.classList.contains('shift-del')) startMove(e, shift.id);
-          });
+          // Mobile handles (only visible in edit mode)
+          if (isMobileDevice) {
+            const mobileHandleTop = document.createElement('div');
+            mobileHandleTop.className = 'mobile-handle top';
+            mobileHandleTop.textContent = '═';
+            mobileHandleTop.addEventListener('touchstart', e => startMobileResize(shift.id, 'start', e));
+            mobileHandleTop.addEventListener('mousedown', e => startMobileResize(shift.id, 'start', e));
+            block.appendChild(mobileHandleTop);
+
+            const mobileHandleBottom = document.createElement('div');
+            mobileHandleBottom.className = 'mobile-handle bottom';
+            mobileHandleBottom.textContent = '═';
+            mobileHandleBottom.addEventListener('touchstart', e => startMobileResize(shift.id, 'end', e));
+            mobileHandleBottom.addEventListener('mousedown', e => startMobileResize(shift.id, 'end', e));
+            block.appendChild(mobileHandleBottom);
+
+            // Long press for edit mode
+            block.addEventListener('touchstart', (e) => {
+              if (e.target.classList.contains('shift-del') || e.target.classList.contains('mobile-handle')) return;
+              startShiftLongPress(shift.id);
+            }, { passive: true });
+            block.addEventListener('touchend', clearLongPress);
+            block.addEventListener('touchcancel', clearLongPress);
+            block.addEventListener('touchmove', clearLongPress);
+
+            // Double tap for note
+            let lastTap = 0;
+            block.addEventListener('click', (e) => {
+              if (e.target.classList.contains('shift-del') || e.target.classList.contains('mobile-handle')) return;
+              const now = Date.now();
+              if (now - lastTap < 300) {
+                editNote(shift.id);
+              }
+              lastTap = now;
+            });
+          } else {
+            // Desktop
+            block.addEventListener('dblclick', () => editNote(shift.id));
+            block.addEventListener('pointerdown', e => {
+              if (!e.target.classList.contains('handle') && !e.target.classList.contains('shift-del')) {
+                startMove(e, shift.id);
+              }
+            });
+          }
         }
 
         grid.appendChild(block);
@@ -1473,7 +1708,8 @@
     }
 
     function onPointerMoveGlobal(e) {
-      if (!canEdit()) return;
+      if (!canEdit() || isMobileDevice) return;
+      
       const grid = document.getElementById('weekGrid');
       const rect = grid.getBoundingClientRect();
       let slotIndex = Math.floor((e.clientY - rect.top) / slotHeightRuntime) - 1;
@@ -1490,6 +1726,7 @@
           newEnd = Math.max(slotIndex + 1, newStart + 1);
         }
         newEnd = Math.min(newEnd, TOTAL_SLOTS);
+        if (newStart < 0) newStart = 0;
 
         if (!hasOverlap(shift.dayIndex, shift.laneIndex, newStart, newEnd, shift.id)) {
           shift.startSlot = newStart;
