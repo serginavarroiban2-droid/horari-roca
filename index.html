@@ -960,8 +960,8 @@
 
   <script>
     // ========== CONFIGURACIÓ SUPABASE ==========
-    const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
+    const SUPABASE_URL = 'https://rlalxxtgivuwgvsniydq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsYWx4eHRnaXZ1d2d2c25peWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNTE4OTAsImV4cCI6MjA4MTYyNzg5MH0.r0YNMCuS11WgQJ_BPSTqZixRHQOFhoOMdtdHjy33wA4';
 
     let supabaseClient;
     let currentUser = null;
@@ -1008,14 +1008,22 @@
     // ========== INICIALITZACIÓ ==========
     document.addEventListener('DOMContentLoaded', async () => {
       try {
+        console.log('Inicialitzant app...');
+        console.log('SUPABASE_URL:', SUPABASE_URL);
+        console.log('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : 'NO DEFINIT');
+        
         if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
           document.getElementById('loadingOverlay').classList.add('hidden');
           alert('ERROR: Configura SUPABASE_URL i SUPABASE_ANON_KEY');
           return;
         }
 
+        console.log('Creant client Supabase...');
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Client creat:', supabaseClient);
+        
         const { data: { session } } = await supabaseClient.auth.getSession();
+        console.log('Sessió actual:', session);
         
         if (session) {
           currentUser = session.user;
@@ -1026,6 +1034,7 @@
         }
 
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          console.log('Auth state changed:', event, session);
           if (event === 'SIGNED_IN' && session) {
             currentUser = session.user;
             await loadUserProfile();
@@ -1036,6 +1045,7 @@
           }
         });
       } catch (error) {
+        console.error('Error inicialització:', error);
         document.getElementById('loadingOverlay').classList.add('hidden');
         alert('Error: ' + error.message);
       }
@@ -1093,14 +1103,21 @@
       const loginError = document.getElementById('loginError');
       const authButton = document.getElementById('authButton');
 
+      console.log('Intentant login amb:', email);
+      console.log('Supabase URL:', SUPABASE_URL);
+      
       loginError.style.display = 'none';
       authButton.disabled = true;
       authButton.textContent = 'Entrant...';
 
       try {
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        console.log('Cridant signInWithPassword...');
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        console.log('Resposta login - data:', data, 'error:', error);
         if (error) throw error;
+        console.log('Login correcte!');
       } catch (error) {
+        console.error('Error login:', error);
         loginError.textContent = error.message.includes('Invalid') ? 'Credencials incorrectes' : error.message;
         loginError.style.display = 'block';
       } finally {
