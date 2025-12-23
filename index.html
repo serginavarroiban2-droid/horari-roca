@@ -960,8 +960,8 @@
 
   <script>
     // ========== CONFIGURACIÓ SUPABASE ==========
-    const SUPABASE_URL = 'https://rlalxxtgivuwgvsniydq.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsYWx4eHRnaXZ1d2d2c25peWRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwNTE4OTAsImV4cCI6MjA4MTYyNzg5MH0.r0YNMCuS11WgQJ_BPSTqZixRHQOFhoOMdtdHjy33wA4';
+    const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
 
     let supabaseClient;
     let currentUser = null;
@@ -1054,16 +1054,22 @@
     // ========== ROLS ==========
     async function loadUserProfile() {
       try {
-        const { data } = await supabaseClient.from('user_profiles').select('*').eq('user_id', currentUser.id).single();
+        console.log('Carregant perfil per user_id:', currentUser.id);
+        const { data, error } = await supabaseClient.from('user_profiles').select('*').eq('user_id', currentUser.id).single();
+        console.log('Resposta user_profiles - data:', data, 'error:', error);
+        
         if (data) {
           currentUserRole = data.role || 'treballador';
           currentUserName = data.name || currentUser.email;
           currentWorkerName = data.worker_name || '';
+          console.log('Perfil carregat - rol:', currentUserRole, 'nom:', currentUserName);
         } else {
+          console.log('No hi ha perfil, usant defaults');
           currentUserRole = 'treballador';
           currentUserName = currentUser.email;
         }
       } catch (error) {
+        console.error('Error carregant perfil:', error);
         currentUserRole = 'treballador';
         currentUserName = currentUser.email;
       }
