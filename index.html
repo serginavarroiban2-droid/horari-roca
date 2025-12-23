@@ -2,10 +2,11 @@
 <html lang="ca">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1f2937">
   <title>HORARI ROCA · Planner</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -18,6 +19,7 @@
       height: 100dvh;
       overflow: hidden;
       overscroll-behavior: none;
+      touch-action: manipulation;
     }
 
     body {
@@ -25,6 +27,7 @@
       background: #f3f4f6;
       position: fixed;
       width: 100%;
+      height: 100dvh;
       top: 0;
       left: 0;
     }
@@ -186,6 +189,18 @@
       font-size: 11px;
     }
 
+    .week-nav-btn {
+      background: #4b5563 !important;
+      padding: 4px 8px !important;
+      font-size: 14px !important;
+      font-weight: bold;
+      min-width: 28px;
+    }
+
+    .week-nav-btn:hover {
+      background: #6b7280 !important;
+    }
+
     .user-bar .holiday-controls {
       display: flex;
       align-items: center;
@@ -321,6 +336,7 @@
       overflow: visible;
       min-width: 800px;
       position: relative;
+      transform-origin: top left;
     }
 
     .cell {
@@ -373,9 +389,22 @@
     .cell.slot-cell.holiday-slot { background: #fef2f2; }
     .cell.slot-cell.drop-target { background: #bfdbfe !important; box-shadow: inset 0 0 0 2px #3b82f6; }
     .cell.slot-cell.placement-mode { background: #dbeafe; }
+    .cell.slot-cell.start-selected { background: #86efac !important; box-shadow: inset 0 0 0 2px #22c55e; }
+    .cell.slot-cell.end-selected { background: #fca5a5 !important; box-shadow: inset 0 0 0 2px #ef4444; }
 
     .narrow-col { background: #f9fafb; }
     .day-separator { border-right: 2px solid #9ca3af !important; }
+
+    /* Línia vermella a les 15:00 */
+    .afternoon-line {
+      position: absolute;
+      left: 30px;
+      right: 0;
+      height: 2px;
+      background: #ef4444;
+      z-index: 5;
+      pointer-events: none;
+    }
 
     .shift-block {
       border-radius: 6px;
@@ -469,33 +498,6 @@
       background: #3b82f6;
     }
 
-    /* Mobile handles - bigger, only in edit mode */
-    .mobile-handle {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 50px;
-      height: 24px;
-      background: #3b82f6;
-      border-radius: 6px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      z-index: 200;
-      cursor: ns-resize;
-      touch-action: none;
-    }
-
-    .mobile-handle.top { top: -12px; }
-    .mobile-handle.bottom { bottom: -12px; }
-
-    .shift-block.editing-mode .mobile-handle {
-      display: flex;
-    }
-
     .shift-del {
       border: none;
       background: rgba(239, 68, 68, 0.95);
@@ -585,10 +587,11 @@
       .app { height: auto; }
       .week-wrapper { box-shadow: none; padding: 0; height: auto; }
       .week-grid { border-width: 1px; grid-auto-rows: 22px !important; }
+      .afternoon-line { display: none; }
     }
 
-    /* ========== MÒBIL ========== */
-    @media screen and (max-width: 900px) {
+    /* ========== MÒBIL VERTICAL ========== */
+    @media screen and (max-width: 900px) and (orientation: portrait) {
       .user-bar { 
         padding: 4px 8px; 
         padding-top: max(4px, env(safe-area-inset-top)); 
@@ -684,6 +687,7 @@
       .week-grid-wrapper {
         flex: 1 !important;
         height: 100% !important;
+        touch-action: pan-x pan-y pinch-zoom;
       }
 
       .week-grid {
@@ -717,6 +721,145 @@
       .shift-del { min-width: 28px !important; height: 28px !important; font-size: 16px !important; padding: 4px !important; }
 
       /* Hide desktop handles on mobile */
+      .handle { display: none !important; }
+    }
+
+    /* ========== MÒBIL HORITZONTAL (LANDSCAPE) ========== */
+    @media screen and (max-width: 900px) and (orientation: landscape) {
+      .user-bar { 
+        padding: 2px 8px; 
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+        min-height: 32px;
+      }
+      .user-bar .user-info span:first-of-type { display: none; }
+      
+      .app {
+        flex-direction: row !important;
+        height: calc(100dvh - 32px);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .left {
+        width: 70px !important;
+        height: 100% !important;
+        flex-direction: column !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        border-right: 1px solid #d1d5db !important;
+        border-bottom: none !important;
+        padding: 4px !important;
+        flex-shrink: 0 !important;
+      }
+
+      h2, .workers-info, #summary { display: none !important; }
+
+      #workers {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 6px !important;
+        align-items: center !important;
+        width: 100% !important;
+      }
+
+      .worker-row {
+        margin: 0 !important;
+        flex-shrink: 0 !important;
+        width: 54px !important;
+        height: 54px !important;
+      }
+
+      .worker-row input[type="checkbox"] { display: none !important; }
+
+      .worker {
+        width: 54px !important;
+        height: 54px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        font-size: 0 !important;
+        border-width: 3px !important;
+        justify-content: center !important;
+      }
+
+      .worker-row.selected .worker { box-shadow: 0 0 0 3px #111827 !important; }
+
+      .worker-color {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 50% !important;
+      }
+
+      .worker span { display: none !important; }
+
+      .worker::after {
+        content: attr(data-initials) !important;
+        position: absolute !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+      }
+
+      .right {
+        flex: 1 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        min-height: 0 !important;
+      }
+
+      .bottom-bar { display: none !important; }
+
+      .week-wrapper {
+        flex: 1 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        min-height: 0 !important;
+      }
+
+      .week-grid-wrapper {
+        flex: 1 !important;
+        height: 100% !important;
+        touch-action: pan-x pan-y pinch-zoom;
+      }
+
+      .week-grid {
+        min-width: 900px !important;
+        grid-auto-rows: 24px !important;
+        border: none !important;
+        border-radius: 0 !important;
+      }
+
+      .cell.header-day {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        font-size: 10px !important;
+      }
+
+      .cell.hour-cell {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        font-size: 9px !important;
+      }
+
+      .cell.corner-cell {
+        position: sticky;
+        top: 0;
+        left: 0;
+        z-index: 30;
+      }
+
+      .shift-block { border-width: 2px !important; }
+      .shift-main { font-size: 8px !important; }
+      .shift-del { min-width: 24px !important; height: 24px !important; font-size: 14px !important; padding: 2px !important; }
+
       .handle { display: none !important; }
     }
   </style>
@@ -758,7 +901,9 @@
       </div>
 
       <div class="bar-controls">
+        <button class="week-nav-btn" onclick="changeWeek(-1)" title="Setmana anterior">◀</button>
         <label>Setmana: <input type="date" id="weekDate"></label>
+        <button class="week-nav-btn" onclick="changeWeek(1)" title="Setmana següent">▶</button>
         <span id="weekBanner"></span>
         
         <div class="holiday-controls" id="holidayControls">
@@ -772,7 +917,7 @@
         <span>●</span> <span id="saveText">Desat</span>
       </div>
       
-      <button onclick="logout()">Sortir</button>
+      <button id="logoutBtn">Sortir</button>
     </div>
 
     <div class="app">
@@ -788,7 +933,7 @@
 
       <div class="right">
         <div class="week-wrapper">
-          <div class="week-grid-wrapper">
+          <div class="week-grid-wrapper" id="weekGridWrapper">
             <div class="week-grid" id="weekGrid"></div>
           </div>
           <div class="bottom-bar" id="bottomBar">
@@ -834,6 +979,7 @@
     const DAYS = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
     const LANES_PER_DAY = 5;
     const LONG_PRESS_DURATION = 500;
+    const AFTERNOON_HOUR = 15; // Hora on comença la tarda
 
     let workers = [];
     let shifts = [];
@@ -848,10 +994,14 @@
     let slotHeightRuntime = 26;
 
     // Mobile state
-    let mobileMode = null;
+    let mobileMode = null; // null, 'placing', 'editing-start', 'editing-end', 'moving'
     let selectedWorkerForPlacement = null;
     let selectedShiftForEdit = null;
+    let mobileEditStart = null; // {day, lane, slot}
     let longPressTimer = null;
+
+    // Zoom state
+    let currentZoom = 1;
 
     const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth <= 900 || ('ontouchstart' in window);
 
@@ -959,7 +1109,20 @@
       }
     }
 
-    async function logout() { await supabaseClient.auth.signOut(); }
+    async function logout() {
+      try {
+        await supabaseClient.auth.signOut();
+        currentUser = null;
+        currentUserRole = 'treballador';
+        currentUserName = '';
+        showLoginScreen();
+      } catch (error) {
+        console.error('Error logout:', error);
+        // Forçar logout manual si falla
+        currentUser = null;
+        showLoginScreen();
+      }
+    }
 
     function showLoginScreen() {
       document.getElementById('loadingOverlay').classList.add('hidden');
@@ -989,6 +1152,7 @@
       }
       
       document.getElementById('printBtn').addEventListener('click', () => window.print());
+      document.getElementById('logoutBtn').addEventListener('click', logout);
       weekInput.addEventListener('change', loadWeek);
 
       buildWeekGrid();
@@ -1000,13 +1164,73 @@
 
       // Cancel mobile action on tap outside
       document.addEventListener('click', (e) => {
-        if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast') && !e.target.closest('.mobile-handle')) {
+        if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast')) {
           cancelMobileAction();
         }
       });
 
+      // Pinch-to-zoom for mobile
+      if (isMobileDevice) {
+        setupPinchZoom();
+      }
+
       window.addEventListener('resize', adjustSlotHeight);
       adjustSlotHeight();
+    }
+
+    // ========== PINCH TO ZOOM ==========
+    function setupPinchZoom() {
+      const wrapper = document.getElementById('weekGridWrapper');
+      const grid = document.getElementById('weekGrid');
+      
+      let initialDistance = 0;
+      let initialZoom = 1;
+      let isPinching = false;
+
+      wrapper.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          isPinching = true;
+          initialDistance = getDistance(e.touches[0], e.touches[1]);
+          initialZoom = currentZoom;
+        }
+      }, { passive: true });
+
+      wrapper.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && isPinching) {
+          e.preventDefault(); // Prevenir zoom natiu del navegador
+          const currentDistance = getDistance(e.touches[0], e.touches[1]);
+          const scale = currentDistance / initialDistance;
+          currentZoom = Math.min(Math.max(initialZoom * scale, 0.5), 2.5);
+          grid.style.transform = `scale(${currentZoom})`;
+          grid.style.transformOrigin = 'top left';
+          
+          // Ajustar mida del wrapper per permetre scroll correcte
+          const originalWidth = 900; // min-width de la graella
+          const originalHeight = grid.scrollHeight / currentZoom;
+          grid.style.width = originalWidth + 'px';
+        }
+      }, { passive: false }); // passive: false per poder fer preventDefault
+
+      wrapper.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+          isPinching = false;
+        }
+      }, { passive: true });
+
+      function getDistance(touch1, touch2) {
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+
+    // ========== WEEK NAVIGATION ==========
+    function changeWeek(direction) {
+      const weekInput = document.getElementById('weekDate');
+      const currentDate = parseISODate(weekInput.value);
+      currentDate.setDate(currentDate.getDate() + (direction * 7));
+      weekInput.value = formatISO(currentDate);
+      loadWeek();
     }
 
     // ========== MOBILE ACTIONS ==========
@@ -1026,10 +1250,13 @@
         if (workerEl) workerEl.classList.remove('active-for-placement');
       }
       document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
+      document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
+      document.querySelectorAll('.slot-cell.end-selected').forEach(c => c.classList.remove('end-selected'));
       
       mobileMode = null;
       selectedWorkerForPlacement = null;
       selectedShiftForEdit = null;
+      mobileEditStart = null;
       hideToast();
       renderShifts();
     }
@@ -1046,7 +1273,7 @@
         element.classList.add('active-for-placement');
         
         document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
-        showToast('👆 Toca on vols posar el torn');
+        showToast('1️⃣ Toca INICI del torn');
       }, LONG_PRESS_DURATION);
     }
 
@@ -1057,11 +1284,12 @@
         if (navigator.vibrate) navigator.vibrate(50);
         
         cancelMobileAction();
-        mobileMode = 'editing';
         selectedShiftForEdit = shiftId;
         
+        // Show options: move or resize
         document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
-        showToast('📍 Toca destí | Arrossega ═ per estirar');
+        mobileMode = 'moving';
+        showToast('📍 Toca destí | o toca fora per cancel·lar');
         renderShifts();
       }, LONG_PRESS_DURATION);
     }
@@ -1077,12 +1305,41 @@
       if (!canEdit() || !isMobileDevice) return;
       
       if (mobileMode === 'placing' && selectedWorkerForPlacement) {
-        createShift(selectedWorkerForPlacement, dayIndex, laneIndex, slotIndex);
-        cancelMobileAction();
-      } else if (mobileMode === 'editing' && selectedShiftForEdit !== null) {
+        if (!mobileEditStart) {
+          // First tap - select start
+          mobileEditStart = { day: dayIndex, lane: laneIndex, slot: slotIndex };
+          document.querySelectorAll('.slot-cell').forEach(c => c.classList.remove('placement-mode'));
+          const startCell = document.querySelector(`.slot-cell[data-day="${dayIndex}"][data-lane="${laneIndex}"][data-slot="${slotIndex}"]`);
+          if (startCell) startCell.classList.add('start-selected');
+          showToast('2️⃣ Toca FINAL del torn');
+        } else {
+          // Second tap - select end and create shift
+          if (dayIndex === mobileEditStart.day && laneIndex === mobileEditStart.lane) {
+            const startSlot = Math.min(mobileEditStart.slot, slotIndex);
+            const endSlot = Math.max(mobileEditStart.slot, slotIndex) + 1;
+            createShiftWithRange(selectedWorkerForPlacement, dayIndex, laneIndex, startSlot, endSlot);
+          } else {
+            setStatus('Inici i final han de ser al mateix dia/carril', true);
+          }
+          cancelMobileAction();
+        }
+      } else if (mobileMode === 'moving' && selectedShiftForEdit !== null) {
         moveShiftTo(selectedShiftForEdit, dayIndex, laneIndex, slotIndex);
         cancelMobileAction();
       }
+    }
+
+    function createShiftWithRange(workerName, dayIndex, laneIndex, startSlot, endSlot) {
+      if (!canEdit()) return;
+      if (endSlot <= startSlot) endSlot = startSlot + 1;
+      if (endSlot > TOTAL_SLOTS) endSlot = TOTAL_SLOTS;
+      if (hasOverlap(dayIndex, laneIndex, startSlot, endSlot, null)) { setStatus('Solapament', true); return; }
+
+      const w = workers.find(x => x.name === workerName);
+      shifts.push({ id: nextId++, worker: workerName, color: w?.color || '#3b82f6', dayIndex, laneIndex, startSlot, endSlot, note: '' });
+      renderShifts();
+      scheduleAutoSave();
+      setStatus(`Torn creat: ${workerName}`, false);
     }
 
     function moveShiftTo(shiftId, dayIndex, laneIndex, slotIndex) {
@@ -1110,58 +1367,6 @@
       } else {
         setStatus('Solapament!', true);
       }
-    }
-
-    function startMobileResize(shiftId, side, e) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const shift = shifts.find(s => s.id === shiftId);
-      if (!shift) return;
-      
-      const grid = document.getElementById('weekGrid');
-      const wrapper = grid.parentElement;
-      
-      const onMove = (ev) => {
-        ev.preventDefault();
-        
-        const touch = ev.touches ? ev.touches[0] : ev;
-        const rect = grid.getBoundingClientRect();
-        const scrollTop = wrapper.scrollTop;
-        const y = touch.clientY - rect.top + scrollTop;
-        let slotIndex = Math.floor(y / slotHeightRuntime) - 1;
-        slotIndex = Math.max(0, Math.min(TOTAL_SLOTS - 1, slotIndex));
-        
-        let newStart = shift.startSlot, newEnd = shift.endSlot;
-        
-        if (side === 'start') {
-          newStart = Math.min(slotIndex, newEnd - 1);
-          if (newStart < 0) newStart = 0;
-        } else {
-          newEnd = Math.max(slotIndex + 1, newStart + 1);
-          if (newEnd > TOTAL_SLOTS) newEnd = TOTAL_SLOTS;
-        }
-        
-        if (!hasOverlap(shift.dayIndex, shift.laneIndex, newStart, newEnd, shift.id)) {
-          shift.startSlot = newStart;
-          shift.endSlot = newEnd;
-          renderShifts();
-        }
-      };
-      
-      const onEnd = () => {
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('touchend', onEnd);
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onEnd);
-        scheduleAutoSave();
-        setStatus('Torn redimensionat', false);
-      };
-      
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onEnd);
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onEnd);
     }
 
     // ========== FESTIUS ==========
@@ -1441,13 +1646,37 @@
           }
         }
       }
+
+      // Add afternoon line at 15:00
+      addAfternoonLine();
+    }
+
+    function addAfternoonLine() {
+      const grid = document.getElementById('weekGrid');
+      const afternoonSlot = (AFTERNOON_HOUR - HOUR_START) * SLOTS_PER_HOUR;
+      
+      // Remove existing line if any
+      const existingLine = grid.querySelector('.afternoon-line');
+      if (existingLine) existingLine.remove();
+      
+      const line = document.createElement('div');
+      line.className = 'afternoon-line';
+      // Position: row starts at 2 (after header), so 15:00 is at row 2 + (15-7)*2 = 2 + 16 = 18
+      const topPosition = (afternoonSlot + 1) * slotHeightRuntime;
+      line.style.top = topPosition + 'px';
+      grid.appendChild(line);
     }
 
     function adjustSlotHeight() {
       const grid = document.getElementById('weekGrid');
       if (!grid) return;
-      slotHeightRuntime = window.innerWidth <= 900 ? 28 : 26;
+      
+      const isLandscape = window.innerWidth > window.innerHeight && window.innerWidth <= 900;
+      slotHeightRuntime = isLandscape ? 24 : (window.innerWidth <= 900 ? 28 : 26);
       grid.style.gridAutoRows = slotHeightRuntime + 'px';
+      
+      // Update afternoon line position
+      addAfternoonLine();
     }
 
     function updateWeekHeaderAndHolidays(weekStartStr, holidays) {
@@ -1607,7 +1836,7 @@
         }
 
         if (canEdit()) {
-          // Desktop handles (always visible on desktop)
+          // Desktop handles
           const handleTop = document.createElement('div');
           handleTop.className = 'handle top';
           handleTop.addEventListener('pointerdown', e => { if (!isMobileDevice) startResize(e, shift.id, 'start'); });
@@ -1618,25 +1847,10 @@
           handleBottom.addEventListener('pointerdown', e => { if (!isMobileDevice) startResize(e, shift.id, 'end'); });
           block.appendChild(handleBottom);
 
-          // Mobile handles (only visible in edit mode)
           if (isMobileDevice) {
-            const mobileHandleTop = document.createElement('div');
-            mobileHandleTop.className = 'mobile-handle top';
-            mobileHandleTop.textContent = '═';
-            mobileHandleTop.addEventListener('touchstart', e => startMobileResize(shift.id, 'start', e));
-            mobileHandleTop.addEventListener('mousedown', e => startMobileResize(shift.id, 'start', e));
-            block.appendChild(mobileHandleTop);
-
-            const mobileHandleBottom = document.createElement('div');
-            mobileHandleBottom.className = 'mobile-handle bottom';
-            mobileHandleBottom.textContent = '═';
-            mobileHandleBottom.addEventListener('touchstart', e => startMobileResize(shift.id, 'end', e));
-            mobileHandleBottom.addEventListener('mousedown', e => startMobileResize(shift.id, 'end', e));
-            block.appendChild(mobileHandleBottom);
-
             // Long press for edit mode
             block.addEventListener('touchstart', (e) => {
-              if (e.target.classList.contains('shift-del') || e.target.classList.contains('mobile-handle')) return;
+              if (e.target.classList.contains('shift-del')) return;
               startShiftLongPress(shift.id);
             }, { passive: true });
             block.addEventListener('touchend', clearLongPress);
@@ -1646,7 +1860,7 @@
             // Double tap for note
             let lastTap = 0;
             block.addEventListener('click', (e) => {
-              if (e.target.classList.contains('shift-del') || e.target.classList.contains('mobile-handle')) return;
+              if (e.target.classList.contains('shift-del')) return;
               const now = Date.now();
               if (now - lastTap < 300) {
                 editNote(shift.id);
