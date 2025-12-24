@@ -407,6 +407,14 @@
 
     .narrow-col { background: #f9fafb; }
     .day-separator { border-right: 2px solid #9ca3af !important; }
+    
+    /* Separador visual per la 5a columna (altra botiga) */
+    .store-separator { 
+      border-left: 3px solid #7c3aed !important; 
+      background: #faf5ff !important;
+    }
+    .store-separator.header-day { background: #ede9fe !important; }
+    .store-separator.holiday-slot { background: #fef2f2 !important; }
 
     /* Línia vermella a les 15:00 */
     .afternoon-line {
@@ -1485,7 +1493,8 @@
               date: formatISO(shiftDate),
               start_time: slotToTime(s.startSlot),
               end_time: slotToTime(s.endSlot),
-              note: s.note || ''
+              note: s.note || '',
+              lane: s.laneIndex
             };
           });
           await supabaseClient.from('shifts').insert(shiftsToInsert);
@@ -1686,7 +1695,9 @@
         for (let d = 0; d < 7; d++) {
           for (let lane = 0; lane < LANES_PER_DAY; lane++) {
             const cell = document.createElement('div');
-            cell.className = 'cell slot-cell' + (lane === LANES_PER_DAY - 1 ? ' narrow-col day-separator' : '');
+            let cellClass = 'cell slot-cell';
+            if (lane === LANES_PER_DAY - 1) cellClass += ' narrow-col day-separator store-separator';
+            cell.className = cellClass;
             cell.style.cssText = `grid-row:${2 + slot};grid-column:${2 + d * LANES_PER_DAY + lane}`;
             cell.dataset.day = String(d);
             cell.dataset.lane = String(lane);
@@ -1806,9 +1817,14 @@
           const endSlot = timeToSlot(s.end_time);
           if (isNaN(startSlot) || isNaN(endSlot)) return;
 
-          let laneIndex = 0;
-          for (let lane = 0; lane < LANES_PER_DAY; lane++) {
-            if (!hasOverlap(dayIndex, lane, startSlot, endSlot, null)) { laneIndex = lane; break; }
+          // Usar lane guardat si existeix, sinó calcular-lo
+          let laneIndex = (typeof s.lane === 'number') ? s.lane : 0;
+          
+          // Si no hi ha lane guardat, buscar un espai lliure (compatibilitat amb dades antigues)
+          if (typeof s.lane !== 'number') {
+            for (let lane = 0; lane < LANES_PER_DAY; lane++) {
+              if (!hasOverlap(dayIndex, lane, startSlot, endSlot, null)) { laneIndex = lane; break; }
+            }
           }
 
           const w = workers.find(x => x.name === s.worker_name);
