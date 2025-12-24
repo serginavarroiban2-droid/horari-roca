@@ -197,9 +197,7 @@
       min-width: 28px;
     }
 
-    .week-nav-btn:hover {
-      background: #6b7280 !important;
-    }
+    .week-nav-btn:hover { background: #6b7280 !important; }
 
     .user-bar .holiday-controls {
       display: flex;
@@ -237,7 +235,7 @@
     }
 
     .left {
-      width: 240px;
+      width: 280px;
       border-right: 2px solid #9ca3af;
       background: #fff;
       padding: 10px;
@@ -297,13 +295,24 @@
 
     .worker-color { width: 10px; height: 10px; border-radius: 999px; }
 
+    /* ========== SUMMARY TABLE ========== */
     #summary { margin-top: 10px; font-size: 11px; }
     #summary h3 { margin: 6px 0 4px; font-size: 12px; }
     #summary table { width: 100%; border-collapse: collapse; }
-    #summary th, #summary td { padding: 2px 4px; text-align: left; }
-    #summary th { border-bottom: 1px solid #d1d5db; font-weight: 600; }
+    #summary th, #summary td { padding: 3px 4px; text-align: left; font-size: 10px; }
+    #summary th { border-bottom: 1px solid #d1d5db; font-weight: 600; background: #f3f4f6; }
     #summary td.hours { text-align: right; }
-    #summary .holiday-warning { color: #dc2626; font-size: 14px; margin-left: 4px; }
+    #summary .holiday-warning { color: #dc2626; font-size: 12px; margin-left: 2px; }
+    #summary input.prev-hours {
+      width: 50px;
+      padding: 2px 4px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 10px;
+      text-align: right;
+    }
+    #summary .diff-positive { color: #059669; }
+    #summary .diff-negative { color: #dc2626; }
 
     .week-wrapper {
       background: #fff;
@@ -420,6 +429,7 @@
       user-select: none;
       -webkit-user-select: none;
       z-index: 5;
+      overflow: hidden;
     }
 
     .shift-block.readonly { cursor: default; }
@@ -435,41 +445,64 @@
       50% { opacity: 0.7; }
     }
 
+    /* Text vertical del treballador */
     .shift-main-row {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 2px;
-      min-width: 0;
       position: absolute;
-      top: 50%;
+      top: 0;
+      bottom: 0;
       left: 0;
       right: 0;
-      transform: translateY(-50%);
       z-index: 10;
       pointer-events: none;
     }
 
     .shift-main {
-      flex: 1;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       color: #111827;
-      padding: 0 2px;
+      font-size: 13px;
+      font-weight: 600;
       text-align: center;
+      max-height: 100%;
+      padding: 2px;
+    }
+
+    .shift-time {
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      right: 2px;
+      font-size: 8px;
+      color: #374151;
+      text-align: center;
+      background: rgba(255,255,255,0.8);
+      border-radius: 2px;
+      padding: 1px;
     }
 
     .shift-note {
-      font-size: 9px;
+      font-size: 8px;
       color: #111827;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       padding: 0 2px;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      right: 2px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 2px;
     }
 
-    /* Desktop handles - always visible */
+    /* Desktop handles */
     .handle {
       position: absolute;
       left: 0;
@@ -494,28 +527,63 @@
       background: rgba(0, 0, 0, 0.3);
     }
 
-    .handle:hover::after {
-      background: #3b82f6;
-    }
+    .handle:hover::after { background: #3b82f6; }
 
+    /* Botó eliminar - ocult per defecte */
     .shift-del {
+      display: none;
       border: none;
       background: rgba(239, 68, 68, 0.95);
       color: #fff;
       cursor: pointer;
-      font-size: 18px;
-      padding: 6px 10px;
-      min-width: 32px;
-      height: 32px;
-      z-index: 11;
+      font-size: 16px;
+      padding: 4px 8px;
+      min-width: 28px;
+      height: 28px;
+      z-index: 200;
       border-radius: 6px;
       font-weight: bold;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      display: flex;
       align-items: center;
       justify-content: center;
       pointer-events: auto;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
     }
+
+    .shift-block.show-delete .shift-del {
+      display: flex;
+    }
+
+    /* Context menu per PC */
+    .context-menu {
+      position: fixed;
+      background: white;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      min-width: 150px;
+      display: none;
+    }
+
+    .context-menu.visible { display: block; }
+
+    .context-menu-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .context-menu-item:hover { background: #f3f4f6; }
+    .context-menu-item:first-child { border-radius: 8px 8px 0 0; }
+    .context-menu-item:last-child { border-radius: 0 0 8px 8px; }
+    .context-menu-item.delete { color: #dc2626; }
 
     .bottom-bar {
       display: flex;
@@ -582,7 +650,7 @@
     @media print {
       @page { size: A4 landscape; }
       body { background: #fff; position: static; }
-      .left, .bottom-bar, .user-bar, .mobile-toast { display: none !important; }
+      .left, .bottom-bar, .user-bar, .mobile-toast, .context-menu { display: none !important; }
       .right { padding: 0; }
       .app { height: auto; }
       .week-wrapper { box-shadow: none; padding: 0; height: auto; }
@@ -697,34 +765,13 @@
         border-radius: 0 !important;
       }
 
-      .cell.header-day {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-      }
-
-      .cell.hour-cell {
-        position: sticky;
-        left: 0;
-        z-index: 10;
-      }
-
-      .cell.corner-cell {
-        position: sticky;
-        top: 0;
-        left: 0;
-        z-index: 30;
-      }
-
       .shift-block { border-width: 2px !important; }
-      .shift-main { font-size: 9px !important; }
-      .shift-del { min-width: 28px !important; height: 28px !important; font-size: 16px !important; padding: 4px !important; }
+      .shift-main { font-size: 8px !important; }
 
-      /* Hide desktop handles on mobile */
       .handle { display: none !important; }
     }
 
-    /* ========== MÒBIL HORITZONTAL (LANDSCAPE) ========== */
+    /* ========== MÒBIL HORITZONTAL ========== */
     @media screen and (max-width: 900px) and (orientation: landscape) {
       .user-bar { 
         padding: 2px 8px; 
@@ -835,30 +882,11 @@
         border-radius: 0 !important;
       }
 
-      .cell.header-day {
-        position: sticky;
-        top: 0;
-        z-index: 20;
-        font-size: 10px !important;
-      }
-
-      .cell.hour-cell {
-        position: sticky;
-        left: 0;
-        z-index: 10;
-        font-size: 9px !important;
-      }
-
-      .cell.corner-cell {
-        position: sticky;
-        top: 0;
-        left: 0;
-        z-index: 30;
-      }
+      .cell.header-day { font-size: 10px !important; }
+      .cell.hour-cell { font-size: 9px !important; }
 
       .shift-block { border-width: 2px !important; }
-      .shift-main { font-size: 8px !important; }
-      .shift-del { min-width: 24px !important; height: 24px !important; font-size: 14px !important; padding: 2px !important; }
+      .shift-main { font-size: 7px !important; }
 
       .handle { display: none !important; }
     }
@@ -868,16 +896,6 @@
   <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner"></div>
   </div>
-
-  <script>
-    setTimeout(() => {
-      const overlay = document.getElementById('loadingOverlay');
-      if (overlay && !overlay.classList.contains('hidden')) {
-        overlay.classList.add('hidden');
-        document.getElementById('loginScreen').classList.remove('hidden');
-      }
-    }, 10000);
-  </script>
 
   <div id="loginScreen" class="login-screen hidden">
     <div class="login-box">
@@ -956,6 +974,12 @@
       <span id="toastMessage"></span>
       <button class="toast-btn" onclick="cancelMobileAction()">Cancel·lar</button>
     </div>
+
+    <!-- Context menu per PC -->
+    <div class="context-menu" id="contextMenu">
+      <div class="context-menu-item" onclick="contextMenuNote()">📝 Afegir nota</div>
+      <div class="context-menu-item delete" onclick="contextMenuDelete()">🗑️ Eliminar torn</div>
+    </div>
   </div>
 
   <script>
@@ -979,7 +1003,7 @@
     const DAYS = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
     const LANES_PER_DAY = 5;
     const LONG_PRESS_DURATION = 500;
-    const AFTERNOON_HOUR = 15; // Hora on comença la tarda
+    const AFTERNOON_HOUR = 15;
 
     let workers = [];
     let shifts = [];
@@ -992,13 +1016,17 @@
     let allHolidays = [];
     let saveTimeout = null;
     let slotHeightRuntime = 26;
+    let plannedHours = {}; // {workerName: hours}
 
     // Mobile state
-    let mobileMode = null; // null, 'placing', 'editing-start', 'editing-end', 'moving'
+    let mobileMode = null;
     let selectedWorkerForPlacement = null;
     let selectedShiftForEdit = null;
-    let mobileEditStart = null; // {day, lane, slot}
+    let mobileEditStart = null;
     let longPressTimer = null;
+
+    // Context menu state
+    let contextMenuShiftId = null;
 
     // Zoom state
     let currentZoom = 1;
@@ -1009,8 +1037,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
       try {
         console.log('Inicialitzant app...');
-        console.log('SUPABASE_URL:', SUPABASE_URL);
-        console.log('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : 'NO DEFINIT');
         
         if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
           document.getElementById('loadingOverlay').classList.add('hidden');
@@ -1018,12 +1044,8 @@
           return;
         }
 
-        console.log('Creant client Supabase...');
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Client creat:', supabaseClient);
-        
         const { data: { session } } = await supabaseClient.auth.getSession();
-        console.log('Sessió actual:', session);
         
         if (session) {
           currentUser = session.user;
@@ -1034,7 +1056,7 @@
         }
 
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
-          console.log('Auth state changed:', event, session);
+          console.log('Auth state changed:', event);
           if (event === 'SIGNED_IN' && session) {
             currentUser = session.user;
             await loadUserProfile();
@@ -1062,9 +1084,7 @@
           currentUserRole = data.role || 'treballador';
           currentUserName = data.name || currentUser.email;
           currentWorkerName = data.worker_name || '';
-          console.log('Perfil carregat - rol:', currentUserRole, 'nom:', currentUserName);
         } else {
-          console.log('No hi ha perfil, usant defaults');
           currentUserRole = 'treballador';
           currentUserName = currentUser.email;
         }
@@ -1109,21 +1129,16 @@
       const loginError = document.getElementById('loginError');
       const authButton = document.getElementById('authButton');
 
-      console.log('Intentant login amb:', email);
-      console.log('Supabase URL:', SUPABASE_URL);
-      
       loginError.style.display = 'none';
       authButton.disabled = true;
       authButton.textContent = 'Entrant...';
 
       try {
-        console.log('Cridant signInWithPassword...');
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        console.log('Resposta login - data:', data, 'error:', error);
+        console.log('Login response:', data, error);
         if (error) throw error;
-        console.log('Login correcte!');
       } catch (error) {
-        console.error('Error login:', error);
+        console.error('Login error:', error);
         loginError.textContent = error.message.includes('Invalid') ? 'Credencials incorrectes' : error.message;
         loginError.style.display = 'block';
       } finally {
@@ -1141,7 +1156,6 @@
         showLoginScreen();
       } catch (error) {
         console.error('Error logout:', error);
-        // Forçar logout manual si falla
         currentUser = null;
         showLoginScreen();
       }
@@ -1180,13 +1194,17 @@
 
       buildWeekGrid();
       loadWeek();
+      loadPlannedHours();
 
       // Desktop events
       document.addEventListener('pointermove', onPointerMoveGlobal);
       document.addEventListener('pointerup', onPointerUpGlobal);
 
-      // Cancel mobile action on tap outside
+      // Context menu
       document.addEventListener('click', (e) => {
+        if (!e.target.closest('.context-menu')) {
+          hideContextMenu();
+        }
         if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast')) {
           cancelMobileAction();
         }
@@ -1199,6 +1217,35 @@
 
       window.addEventListener('resize', adjustSlotHeight);
       adjustSlotHeight();
+    }
+
+    // ========== CONTEXT MENU (PC) ==========
+    function showContextMenu(e, shiftId) {
+      e.preventDefault();
+      contextMenuShiftId = shiftId;
+      const menu = document.getElementById('contextMenu');
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      menu.classList.add('visible');
+    }
+
+    function hideContextMenu() {
+      document.getElementById('contextMenu').classList.remove('visible');
+      contextMenuShiftId = null;
+    }
+
+    function contextMenuNote() {
+      if (contextMenuShiftId !== null) {
+        editNote(contextMenuShiftId);
+      }
+      hideContextMenu();
+    }
+
+    function contextMenuDelete() {
+      if (contextMenuShiftId !== null) {
+        deleteShift(contextMenuShiftId);
+      }
+      hideContextMenu();
     }
 
     // ========== PINCH TO ZOOM ==========
@@ -1220,19 +1267,14 @@
 
       wrapper.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && isPinching) {
-          e.preventDefault(); // Prevenir zoom natiu del navegador
+          e.preventDefault();
           const currentDistance = getDistance(e.touches[0], e.touches[1]);
           const scale = currentDistance / initialDistance;
           currentZoom = Math.min(Math.max(initialZoom * scale, 0.5), 2.5);
           grid.style.transform = `scale(${currentZoom})`;
           grid.style.transformOrigin = 'top left';
-          
-          // Ajustar mida del wrapper per permetre scroll correcte
-          const originalWidth = 900; // min-width de la graella
-          const originalHeight = grid.scrollHeight / currentZoom;
-          grid.style.width = originalWidth + 'px';
         }
-      }, { passive: false }); // passive: false per poder fer preventDefault
+      }, { passive: false });
 
       wrapper.addEventListener('touchend', (e) => {
         if (e.touches.length < 2) {
@@ -1274,7 +1316,7 @@
       }
       document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
       document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
-      document.querySelectorAll('.slot-cell.end-selected').forEach(c => c.classList.remove('end-selected'));
+      document.querySelectorAll('.shift-block.show-delete').forEach(b => b.classList.remove('show-delete'));
       
       mobileMode = null;
       selectedWorkerForPlacement = null;
@@ -1300,7 +1342,7 @@
       }, LONG_PRESS_DURATION);
     }
 
-    function startShiftLongPress(shiftId) {
+    function startShiftLongPress(shiftId, blockElement) {
       if (!canEdit() || !isMobileDevice) return;
       
       longPressTimer = setTimeout(() => {
@@ -1308,12 +1350,11 @@
         
         cancelMobileAction();
         selectedShiftForEdit = shiftId;
+        mobileMode = 'mobile-delete';
         
-        // Show options: move or resize
-        document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
-        mobileMode = 'moving';
-        showToast('📍 Toca destí | o toca fora per cancel·lar');
-        renderShifts();
+        // Mostrar botó eliminar
+        blockElement.classList.add('show-delete');
+        showToast('🗑️ Toca ✕ per eliminar | Toca fora per cancel·lar');
       }, LONG_PRESS_DURATION);
     }
 
@@ -1329,14 +1370,12 @@
       
       if (mobileMode === 'placing' && selectedWorkerForPlacement) {
         if (!mobileEditStart) {
-          // First tap - select start
           mobileEditStart = { day: dayIndex, lane: laneIndex, slot: slotIndex };
           document.querySelectorAll('.slot-cell').forEach(c => c.classList.remove('placement-mode'));
           const startCell = document.querySelector(`.slot-cell[data-day="${dayIndex}"][data-lane="${laneIndex}"][data-slot="${slotIndex}"]`);
           if (startCell) startCell.classList.add('start-selected');
           showToast('2️⃣ Toca FINAL del torn');
         } else {
-          // Second tap - select end and create shift
           if (dayIndex === mobileEditStart.day && laneIndex === mobileEditStart.lane) {
             const startSlot = Math.min(mobileEditStart.slot, slotIndex);
             const endSlot = Math.max(mobileEditStart.slot, slotIndex) + 1;
@@ -1346,9 +1385,6 @@
           }
           cancelMobileAction();
         }
-      } else if (mobileMode === 'moving' && selectedShiftForEdit !== null) {
-        moveShiftTo(selectedShiftForEdit, dayIndex, laneIndex, slotIndex);
-        cancelMobileAction();
       }
     }
 
@@ -1365,31 +1401,22 @@
       setStatus(`Torn creat: ${workerName}`, false);
     }
 
-    function moveShiftTo(shiftId, dayIndex, laneIndex, slotIndex) {
-      const shift = shifts.find(s => s.id === shiftId);
-      if (!shift) return;
-      
-      const duration = shift.endSlot - shift.startSlot;
-      let newStart = slotIndex;
-      let newEnd = newStart + duration;
-      
-      if (newEnd > TOTAL_SLOTS) {
-        newEnd = TOTAL_SLOTS;
-        newStart = newEnd - duration;
+    // ========== PLANNED HOURS ==========
+    function loadPlannedHours() {
+      const stored = localStorage.getItem('plannedHours');
+      if (stored) {
+        plannedHours = JSON.parse(stored);
       }
-      if (newStart < 0) newStart = 0;
-      
-      if (!hasOverlap(dayIndex, laneIndex, newStart, newEnd, shiftId)) {
-        shift.dayIndex = dayIndex;
-        shift.laneIndex = laneIndex;
-        shift.startSlot = newStart;
-        shift.endSlot = newEnd;
-        renderShifts();
-        scheduleAutoSave();
-        setStatus('Torn mogut', false);
-      } else {
-        setStatus('Solapament!', true);
-      }
+    }
+
+    function savePlannedHours() {
+      localStorage.setItem('plannedHours', JSON.stringify(plannedHours));
+    }
+
+    function updatePlannedHours(workerName, hours) {
+      plannedHours[workerName] = parseFloat(hours) || 0;
+      savePlannedHours();
+      updateSummary();
     }
 
     // ========== FESTIUS ==========
@@ -1489,13 +1516,17 @@
       const mins = slots * 30;
       const h = Math.floor(mins / 60);
       const m = mins % 60;
-      return m === 0 ? `${h} h` : `${h} h ${m} min`;
+      return m === 0 ? `${h}h` : `${h}h ${m}m`;
+    }
+
+    function formatHoursDecimal(slots) {
+      return (slots * 30 / 60).toFixed(1);
     }
 
     function formatHoursFromMinutes(mins) {
       const h = Math.floor(mins / 60);
       const m = mins % 60;
-      return m === 0 ? `${h} h` : `${h} h ${m} min`;
+      return m === 0 ? `${h}h` : `${h}h ${m}m`;
     }
 
     function isWorkerSelected(name) {
@@ -1537,10 +1568,21 @@
         if (allHolidays.includes(formatISO(shiftDate))) holidayWork[s.worker] = true;
       });
 
-      let html = '<table><tr><th>Treballador</th><th style="text-align:right;">Hores</th></tr>';
+      let html = '<table><tr><th>Treballador</th><th>Reals</th><th>Prev.</th><th>Dif.</th></tr>';
       Object.keys(totals).sort().forEach(name => {
         const icon = holidayWork[name] ? '<span class="holiday-warning">⚠️</span>' : '';
-        html += `<tr><td>${name}${icon}</td><td class="hours">${formatHoursFromSlots(totals[name])}</td></tr>`;
+        const realHours = parseFloat(formatHoursDecimal(totals[name]));
+        const prevHours = plannedHours[name] || 0;
+        const diff = realHours - prevHours;
+        const diffClass = diff >= 0 ? 'diff-positive' : 'diff-negative';
+        const diffSign = diff >= 0 ? '+' : '';
+        
+        html += `<tr>
+          <td>${name}${icon}</td>
+          <td class="hours">${formatHoursFromSlots(totals[name])}</td>
+          <td><input type="number" class="prev-hours" value="${prevHours}" step="0.5" min="0" onchange="updatePlannedHours('${name}', this.value)"></td>
+          <td class="hours ${diffClass}">${diffSign}${diff.toFixed(1)}h</td>
+        </tr>`;
       });
       box.innerHTML = html + '</table>';
     }
@@ -1614,13 +1656,11 @@
       }
       grid.style.gridTemplateColumns = cols.join(' ');
 
-      // Corner cell
       const corner = document.createElement('div');
       corner.className = 'cell corner-cell';
       corner.style.cssText = 'grid-row:1;grid-column:1;';
       grid.appendChild(corner);
 
-      // Day headers
       for (let d = 0; d < 7; d++) {
         const dayCell = document.createElement('div');
         dayCell.className = 'cell header-day day-separator';
@@ -1630,7 +1670,6 @@
         grid.appendChild(dayCell);
       }
 
-      // Hour cells
       for (let i = 0; i < HOUR_END - HOUR_START; i++) {
         const hourCell = document.createElement('div');
         hourCell.className = 'cell hour-cell';
@@ -1639,7 +1678,6 @@
         grid.appendChild(hourCell);
       }
 
-      // Slot cells
       for (let slot = 0; slot < TOTAL_SLOTS; slot++) {
         for (let d = 0; d < 7; d++) {
           for (let lane = 0; lane < LANES_PER_DAY; lane++) {
@@ -1670,7 +1708,6 @@
         }
       }
 
-      // Add afternoon line at 15:00
       addAfternoonLine();
     }
 
@@ -1678,13 +1715,11 @@
       const grid = document.getElementById('weekGrid');
       const afternoonSlot = (AFTERNOON_HOUR - HOUR_START) * SLOTS_PER_HOUR;
       
-      // Remove existing line if any
       const existingLine = grid.querySelector('.afternoon-line');
       if (existingLine) existingLine.remove();
       
       const line = document.createElement('div');
       line.className = 'afternoon-line';
-      // Position: row starts at 2 (after header), so 15:00 is at row 2 + (15-7)*2 = 2 + 16 = 18
       const topPosition = (afternoonSlot + 1) * slotHeightRuntime;
       line.style.top = topPosition + 'px';
       grid.appendChild(line);
@@ -1698,7 +1733,6 @@
       slotHeightRuntime = isLandscape ? 24 : (window.innerWidth <= 900 ? 28 : 26);
       grid.style.gridAutoRows = slotHeightRuntime + 'px';
       
-      // Update afternoon line position
       addAfternoonLine();
     }
 
@@ -1833,23 +1867,22 @@
         block.className = 'shift-block' + (!canEdit() ? ' readonly' : '') + (isEditing ? ' editing-mode' : '');
         block.style.cssText = `grid-row:${2 + shift.startSlot}/${2 + shift.endSlot};grid-column:${2 + shift.dayIndex * LANES_PER_DAY + shift.laneIndex};border-color:${shift.color};background-color:${hexToRgba(shift.color, 0.70)}`;
 
+        // Nom vertical
         const mainRow = document.createElement('div');
         mainRow.className = 'shift-main-row';
 
         const main = document.createElement('div');
         main.className = 'shift-main';
-        main.textContent = `${shift.worker} (${slotToTime(shift.startSlot)} - ${slotToTime(shift.endSlot)})`;
+        main.textContent = shift.worker;
         mainRow.appendChild(main);
 
-        if (canEdit()) {
-          const delBtn = document.createElement('button');
-          delBtn.className = 'shift-del';
-          delBtn.textContent = '✕';
-          delBtn.addEventListener('click', e => { e.stopPropagation(); cancelMobileAction(); deleteShift(shift.id); });
-          mainRow.appendChild(delBtn);
-        }
-
         block.appendChild(mainRow);
+
+        // Horari a baix
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'shift-time';
+        timeDiv.textContent = `${slotToTime(shift.startSlot)}-${slotToTime(shift.endSlot)}`;
+        block.appendChild(timeDiv);
 
         if (shift.note) {
           const noteDiv = document.createElement('div');
@@ -1859,6 +1892,13 @@
         }
 
         if (canEdit()) {
+          // Botó eliminar (ocult per defecte)
+          const delBtn = document.createElement('button');
+          delBtn.className = 'shift-del';
+          delBtn.textContent = '✕';
+          delBtn.addEventListener('click', e => { e.stopPropagation(); cancelMobileAction(); deleteShift(shift.id); });
+          block.appendChild(delBtn);
+
           // Desktop handles
           const handleTop = document.createElement('div');
           handleTop.className = 'handle top';
@@ -1871,16 +1911,14 @@
           block.appendChild(handleBottom);
 
           if (isMobileDevice) {
-            // Long press for edit mode
             block.addEventListener('touchstart', (e) => {
               if (e.target.classList.contains('shift-del')) return;
-              startShiftLongPress(shift.id);
+              startShiftLongPress(shift.id, block);
             }, { passive: true });
             block.addEventListener('touchend', clearLongPress);
             block.addEventListener('touchcancel', clearLongPress);
             block.addEventListener('touchmove', clearLongPress);
 
-            // Double tap for note
             let lastTap = 0;
             block.addEventListener('click', (e) => {
               if (e.target.classList.contains('shift-del')) return;
@@ -1891,10 +1929,11 @@
               lastTap = now;
             });
           } else {
-            // Desktop
+            // Desktop: clic dret per menú contextual
+            block.addEventListener('contextmenu', e => showContextMenu(e, shift.id));
             block.addEventListener('dblclick', () => editNote(shift.id));
             block.addEventListener('pointerdown', e => {
-              if (!e.target.classList.contains('handle') && !e.target.classList.contains('shift-del')) {
+              if (!e.target.classList.contains('handle') && !e.target.classList.contains('shift-del') && e.button === 0) {
                 startMove(e, shift.id);
               }
             });
@@ -2032,18 +2071,92 @@
       const to = document.getElementById('reportTo').value;
       if (!from || !to) { setStatus('Selecciona dates', true); return; }
 
-      const { data } = await supabaseClient.from('shifts').select('*').gte('date', from).lte('date', to).order('date');
+      const { data } = await supabaseClient.from('shifts').select('*').gte('date', from).lte('date', to).order('worker_name').order('date').order('start_time');
       if (!data?.length) { setStatus('No hi ha torns', true); return; }
 
-      const totals = {}, holidayWork = {};
-      data.forEach(s => {
-        const [sh, sm] = s.start_time.split(':').map(Number);
-        const [eh, em] = s.end_time.split(':').map(Number);
-        totals[s.worker_name] = (totals[s.worker_name] || 0) + (eh * 60 + em) - (sh * 60 + sm);
-        if (allHolidays.includes(s.date)) holidayWork[s.worker_name] = true;
+      // Filtrar només treballadors visibles
+      const visibleWorkers = workers.filter(w => w.selected !== false).map(w => w.name);
+      const filteredData = data.filter(s => visibleWorkers.includes(s.worker_name));
+      
+      if (!filteredData.length) { setStatus('No hi ha torns visibles', true); return; }
+
+      // Agrupar per treballador
+      const byWorker = {};
+      filteredData.forEach(s => {
+        if (!byWorker[s.worker_name]) byWorker[s.worker_name] = [];
+        byWorker[s.worker_name].push(s);
       });
 
-      const html = `<!DOCTYPE html><html><head><title>Resum</title><style>body{font-family:system-ui;padding:40px}table{border-collapse:collapse;width:100%;max-width:600px}th,td{padding:12px;border-bottom:1px solid #e5e7eb}th{background:#f9fafb}.hours{text-align:right}.total{font-weight:600;background:#dbeafe}.warn{color:#dc2626}</style></head><body><h1>Resum d'hores</h1><p>${from} - ${to}</p><table><tr><th>Treballador</th><th class="hours">Hores</th></tr>${Object.entries(totals).sort((a,b)=>a[0].localeCompare(b[0])).map(([n,m])=>`<tr><td>${n}${holidayWork[n]?'<span class="warn"> ⚠️</span>':''}</td><td class="hours">${formatHoursFromMinutes(m)}</td></tr>`).join('')}<tr class="total"><td>TOTAL</td><td class="hours">${formatHoursFromMinutes(Object.values(totals).reduce((a,b)=>a+b,0))}</td></tr></table><br><button onclick="print()">Imprimir</button></body></html>`;
+      // Generar HTML del report
+      let workersHtml = '';
+      
+      Object.keys(byWorker).sort().forEach(workerName => {
+        const workerShifts = byWorker[workerName];
+        const prevHours = plannedHours[workerName] || 0;
+        let totalMins = 0;
+        
+        let shiftsHtml = '';
+        workerShifts.forEach(s => {
+          const [sh, sm] = s.start_time.split(':').map(Number);
+          const [eh, em] = s.end_time.split(':').map(Number);
+          const mins = (eh * 60 + em) - (sh * 60 + sm);
+          totalMins += mins;
+          
+          const isHoliday = allHolidays.includes(s.date);
+          const dayType = isHoliday ? 'Festiu' : 'Laborable';
+          
+          shiftsHtml += `<tr>
+            <td>${s.date}</td>
+            <td>${dayType}</td>
+            <td>${s.start_time} - ${s.end_time}</td>
+            <td class="hours">${formatHoursFromMinutes(mins)}</td>
+          </tr>`;
+        });
+        
+        const realHours = totalMins / 60;
+        const diff = realHours - prevHours;
+        const diffSign = diff >= 0 ? '+' : '';
+        const diffClass = diff >= 0 ? 'positive' : 'negative';
+        
+        workersHtml += `
+          <div class="worker-section">
+            <h2>${workerName}</h2>
+            <div class="totals">
+              <span>Previstes: <strong>${prevHours}h</strong></span>
+              <span>Treballades: <strong>${formatHoursFromMinutes(totalMins)}</strong></span>
+              <span class="${diffClass}">Diferència: <strong>${diffSign}${diff.toFixed(1)}h</strong></span>
+            </div>
+            <table>
+              <tr><th>Data</th><th>Tipus</th><th>Horari</th><th>Hores</th></tr>
+              ${shiftsHtml}
+            </table>
+          </div>
+        `;
+      });
+
+      const html = `<!DOCTYPE html>
+<html><head><title>Resum d'hores</title>
+<style>
+  body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+  h1 { color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+  .period { color: #6b7280; margin-bottom: 20px; }
+  .worker-section { margin-bottom: 30px; page-break-inside: avoid; }
+  .worker-section h2 { color: #1f2937; background: #dbeafe; padding: 8px 12px; border-radius: 6px; margin: 0 0 10px; }
+  .totals { display: flex; gap: 20px; margin-bottom: 10px; font-size: 14px; }
+  .totals .positive { color: #059669; }
+  .totals .negative { color: #dc2626; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f9fafb; font-weight: 600; }
+  td.hours { text-align: right; }
+  @media print { .no-print { display: none; } }
+</style>
+</head><body>
+  <h1>Resum d'hores</h1>
+  <p class="period">Període: ${from} - ${to}</p>
+  ${workersHtml}
+  <button class="no-print" onclick="print()" style="padding:10px 20px;font-size:14px;cursor:pointer;">Imprimir</button>
+</body></html>`;
       
       const win = window.open('', '_blank');
       win.document.write(html);
