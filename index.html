@@ -1329,6 +1329,7 @@
       document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
       document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
       document.querySelectorAll('.shift-block.show-delete').forEach(b => b.classList.remove('show-delete'));
+      document.querySelectorAll('.shift-block.editing-mode').forEach(b => b.classList.remove('editing-mode'));
       
       mobileMode = null;
       selectedWorkerForPlacement = null;
@@ -1344,9 +1345,23 @@
       longPressTimer = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(50);
         
-        cancelMobileAction();
+        // Netejar estat anterior sense cridar renderShifts
+        if (selectedWorkerForPlacement) {
+          const workerEl = document.querySelector(`.worker[data-worker="${selectedWorkerForPlacement}"]`);
+          if (workerEl) workerEl.classList.remove('active-for-placement');
+        }
+        document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
+        document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
+        document.querySelectorAll('.shift-block.show-delete').forEach(b => b.classList.remove('show-delete'));
+        document.querySelectorAll('.shift-block.editing-mode').forEach(b => b.classList.remove('editing-mode'));
+        hideToast();
+        
+        // Configurar nou estat
         mobileMode = 'placing';
         selectedWorkerForPlacement = workerName;
+        selectedShiftForEdit = null;
+        mobileEditStart = null;
+        
         element.classList.add('active-for-placement');
         
         document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
@@ -1360,13 +1375,36 @@
       longPressTimer = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(50);
         
-        cancelMobileAction();
-        selectedShiftForEdit = shiftId;
-        mobileMode = 'mobile-delete';
+        // Netejar estat anterior sense cridar renderShifts
+        if (selectedWorkerForPlacement) {
+          const workerEl = document.querySelector(`.worker[data-worker="${selectedWorkerForPlacement}"]`);
+          if (workerEl) workerEl.classList.remove('active-for-placement');
+        }
+        document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
+        document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
+        document.querySelectorAll('.shift-block.show-delete').forEach(b => b.classList.remove('show-delete'));
+        document.querySelectorAll('.shift-block.editing-mode').forEach(b => b.classList.remove('editing-mode'));
+        hideToast();
         
-        // Mostrar botó eliminar
+        // Configurar nou estat
+        selectedShiftForEdit = shiftId;
+        mobileMode = 'editing';
+        mobileEditStart = null;
+        selectedWorkerForPlacement = null;
+        
+        // Mostrar botó eliminar i activar mode edició
         blockElement.classList.add('show-delete');
-        showToast('🗑️ Toca ✕ per eliminar | Toca fora per cancel·lar');
+        blockElement.classList.add('editing-mode');
+        
+        // Marcar cel·les disponibles per editar
+        const shift = shifts.find(s => s.id === shiftId);
+        if (shift) {
+          document.querySelectorAll(`.slot-cell[data-day="${shift.dayIndex}"][data-lane="${shift.laneIndex}"]`).forEach(c => {
+            c.classList.add('placement-mode');
+          });
+        }
+        
+        showToast('✏️ Toca nou INICI o ✕ per eliminar');
       }, LONG_PRESS_DURATION);
     }
 
@@ -1380,6 +1418,7 @@
     function handleCellTapMobile(dayIndex, laneIndex, slotIndex) {
       if (!canEdit() || !isMobileDevice) return;
       
+      // Mode crear torn nou
       if (mobileMode === 'placing' && selectedWorkerForPlacement) {
         if (!mobileEditStart) {
           mobileEditStart = { day: dayIndex, lane: laneIndex, slot: slotIndex };
@@ -1394,6 +1433,42 @@
             createShiftWithRange(selectedWorkerForPlacement, dayIndex, laneIndex, startSlot, endSlot);
           } else {
             setStatus('Inici i final han de ser al mateix dia/carril', true);
+          }
+          cancelMobileAction();
+        }
+      }
+      
+      // Mode editar torn existent
+      if (mobileMode === 'editing' && selectedShiftForEdit) {
+        const shift = shifts.find(s => s.id === selectedShiftForEdit);
+        if (!shift) { cancelMobileAction(); return; }
+        
+        // Només permetre editar en el mateix dia i carril
+        if (dayIndex !== shift.dayIndex || laneIndex !== shift.laneIndex) {
+          setStatus('Edita dins el mateix dia/carril', true);
+          return;
+        }
+        
+        if (!mobileEditStart) {
+          // Primer toc: nou inici
+          mobileEditStart = { slot: slotIndex };
+          document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
+          const startCell = document.querySelector(`.slot-cell[data-day="${dayIndex}"][data-lane="${laneIndex}"][data-slot="${slotIndex}"]`);
+          if (startCell) startCell.classList.add('start-selected');
+          showToast('2️⃣ Toca nou FINAL del torn');
+        } else {
+          // Segon toc: nou final
+          const newStart = Math.min(mobileEditStart.slot, slotIndex);
+          const newEnd = Math.max(mobileEditStart.slot, slotIndex) + 1;
+          
+          // Comprovar solapament
+          if (!hasOverlap(shift.dayIndex, shift.laneIndex, newStart, newEnd, shift.id)) {
+            shift.startSlot = newStart;
+            shift.endSlot = newEnd;
+            scheduleAutoSave();
+            setStatus('Torn modificat', false);
+          } else {
+            setStatus('Solapament amb altre torn', true);
           }
           cancelMobileAction();
         }
@@ -1884,7 +1959,7 @@
       shifts.filter(s => isWorkerSelected(s.worker)).forEach(shift => {
         const isEditing = selectedShiftForEdit === shift.id;
         const block = document.createElement('div');
-        block.className = 'shift-block' + (!canEdit() ? ' readonly' : '') + (isEditing ? ' editing-mode' : '');
+        block.className = 'shift-block' + (!canEdit() ? ' readonly' : '') + (isEditing ? ' editing-mode show-delete' : '');
         block.style.cssText = `grid-row:${2 + shift.startSlot}/${2 + shift.endSlot};grid-column:${2 + shift.dayIndex * LANES_PER_DAY + shift.laneIndex};border-color:${shift.color};background-color:${hexToRgba(shift.color, 0.70)}`;
 
         // Nom vertical
