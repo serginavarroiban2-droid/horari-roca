@@ -1371,7 +1371,7 @@
         if (!e.target.closest('.context-menu')) {
           hideContextMenu();
         }
-        if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast')) {
+        if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast') && !e.target.closest('.mobile-actions-popup')) {
           cancelMobileAction();
         }
       });
@@ -1558,40 +1558,27 @@
       cancelMobileAction();
     }
 
-    // Funcions wrapper per als botons del popup
+    // Funcions per als botons del popup
     function onMobileMove() {
-      if (selectedShiftForEdit !== null) {
-        startMobileMove(selectedShiftForEdit);
-      }
-    }
-
-    function onMobileEdit() {
-      if (selectedShiftForEdit !== null) {
-        startMobileEdit(selectedShiftForEdit);
-      }
-    }
-
-    function startMobileMove(shiftId) {
-      hideMobileActionsPopup();
+      if (selectedShiftForEdit === null) return;
       
-      selectedShiftForEdit = shiftId;
+      hideMobileActionsPopup();
       mobileMode = 'moving';
       mobileEditStart = null;
       
       document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
-      
       renderShifts();
       showToast('📍 Toca on vols moure el torn');
     }
 
-    function startMobileEdit(shiftId) {
-      hideMobileActionsPopup();
+    function onMobileEdit() {
+      if (selectedShiftForEdit === null) return;
       
-      selectedShiftForEdit = shiftId;
+      hideMobileActionsPopup();
       mobileMode = 'editing';
       mobileEditStart = null;
       
-      const shift = shifts.find(s => s.id === shiftId);
+      const shift = shifts.find(s => s.id === selectedShiftForEdit);
       
       // Marcar cel·les del mateix dia/carril (incloent les del torn)
       if (shift) {
@@ -1602,6 +1589,17 @@
       
       renderShifts();
       showToast('1️⃣ Toca INICI del torn');
+    }
+
+    // Funcions alternatives (per compatibilitat)
+    function startMobileMove(shiftId) {
+      selectedShiftForEdit = shiftId;
+      onMobileMove();
+    }
+
+    function startMobileEdit(shiftId) {
+      selectedShiftForEdit = shiftId;
+      onMobileEdit();
     }
 
     function clearLongPress() {
