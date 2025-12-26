@@ -1126,19 +1126,19 @@
     </div>
 
     <!-- Popup d'accions mòbil -->
-    <div class="mobile-actions-popup hidden" id="mobileActionsPopup">
-      <div class="popup-content">
-        <button class="mobile-action-btn move" onclick="onMobileMove()">
+    <div class="mobile-actions-popup hidden" id="mobileActionsPopup" onclick="if(event.target === this) cancelMobileAction();">
+      <div class="popup-content" onclick="event.stopPropagation();">
+        <button class="mobile-action-btn move" id="btnMobileMove">
           <span>↗</span>Moure
         </button>
-        <button class="mobile-action-btn edit" onclick="onMobileEdit()">
+        <button class="mobile-action-btn edit" id="btnMobileEdit">
           <span>✎</span>Editar
         </button>
-        <button class="mobile-action-btn delete" onclick="deleteMobileShift()">
+        <button class="mobile-action-btn delete" id="btnMobileDelete">
           <span>✕</span>Esborrar
         </button>
       </div>
-      <button class="popup-cancel" onclick="cancelMobileAction()">Cancel·lar</button>
+      <button class="popup-cancel" id="btnMobileCancel">Cancel·lar</button>
     </div>
 
     <!-- Context menu per PC -->
@@ -1150,7 +1150,10 @@
 
   <script>
     // ========== CONFIGURACIÓ SUPABASE ==========
-Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha treballat, no ha de sortir "Festius: +8.0h" en tronja. En canvi si que hi ha de sortir quan el torn està posat a la graella.    let supabaseClient;
+    const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
+
+    let supabaseClient;
     let currentUser = null;
     let currentUserRole = 'treballador';
     let currentUserName = '';
@@ -1363,14 +1366,52 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
       document.addEventListener('pointermove', onPointerMoveGlobal);
       document.addEventListener('pointerup', onPointerUpGlobal);
 
-      // Context menu
+      // Context menu i cancel·lació d'accions mòbils
       document.addEventListener('click', (e) => {
+        // Amagar context menu
         if (!e.target.closest('.context-menu')) {
           hideContextMenu();
         }
-        if (mobileMode && !e.target.closest('.worker') && !e.target.closest('.shift-block') && !e.target.closest('.slot-cell') && !e.target.closest('.mobile-toast') && !e.target.closest('.mobile-actions-popup')) {
-          cancelMobileAction();
+        
+        // Cancel·lar accions mòbils només si es fa clic fora de les zones interactives
+        if (mobileMode) {
+          const isInteractiveElement = 
+            e.target.closest('.worker') || 
+            e.target.closest('.shift-block') || 
+            e.target.closest('.slot-cell') || 
+            e.target.closest('.mobile-toast') || 
+            e.target.closest('.mobile-actions-popup') ||
+            e.target.closest('.bottom-bar') ||
+            e.target.closest('.bar-controls') ||
+            e.target.closest('button') ||
+            e.target.closest('input');
+          
+          if (!isInteractiveElement) {
+            cancelMobileAction();
+          }
         }
+      });
+
+      // Event listeners per botons del popup mòbil
+      document.getElementById('btnMobileMove').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onMobileMove();
+      });
+      document.getElementById('btnMobileEdit').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onMobileEdit();
+      });
+      document.getElementById('btnMobileDelete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        deleteMobileShift();
+      });
+      document.getElementById('btnMobileCancel').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        cancelMobileAction();
       });
 
       // Pinch-to-zoom for mobile
@@ -1744,7 +1785,26 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
       if (!currentWeekStart) return;
       const stored = localStorage.getItem('holidayHours_' + currentWeekStart);
       if (stored) {
-        holidayHours = JSON.parse(stored);
+        try {
+          holidayHours = JSON.parse(stored);
+          // Netejar entrades invàlides (valor <= 0 o no numèric)
+          Object.keys(holidayHours).forEach(date => {
+            Object.keys(holidayHours[date]).forEach(worker => {
+              const val = holidayHours[date][worker];
+              if (typeof val !== 'number' || val <= 0) {
+                delete holidayHours[date][worker];
+              }
+            });
+            // Eliminar dates buides
+            if (Object.keys(holidayHours[date]).length === 0) {
+              delete holidayHours[date];
+            }
+          });
+          // Guardar les dades netejades
+          saveHolidayHours();
+        } catch(e) {
+          holidayHours = {};
+        }
       } else {
         holidayHours = {};
       }
@@ -1752,15 +1812,25 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
 
     function saveHolidayHours() {
       if (!currentWeekStart) return;
+      // Netejar dates sense treballadors
+      Object.keys(holidayHours).forEach(date => {
+        if (Object.keys(holidayHours[date]).length === 0) {
+          delete holidayHours[date];
+        }
+      });
       localStorage.setItem('holidayHours_' + currentWeekStart, JSON.stringify(holidayHours));
     }
 
     function updateHolidayHours(date, workerName, hours, enabled) {
       if (!holidayHours[date]) holidayHours[date] = {};
-      if (enabled && hours > 0) {
-        holidayHours[date][workerName] = parseFloat(hours) || 0;
+      if (enabled && parseFloat(hours) > 0) {
+        holidayHours[date][workerName] = parseFloat(hours);
       } else {
         delete holidayHours[date][workerName];
+        // Si la data queda buida, eliminar-la
+        if (Object.keys(holidayHours[date]).length === 0) {
+          delete holidayHours[date];
+        }
       }
       saveHolidayHours();
       updateSummary();
@@ -2526,9 +2596,11 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
       const fromDate = parseISODate(from);
       const toDate = parseISODate(to);
       
-      // Iterar per cada setmana del període
+      // Iterar per cada setmana del període (màxim 52 setmanes per seguretat)
       let currentDate = new Date(fromDate);
-      while (currentDate <= toDate) {
+      let safetyCounter = 0;
+      while (currentDate <= toDate && safetyCounter < 52) {
+        safetyCounter++;
         // Trobar dilluns de la setmana
         const dayOfWeek = currentDate.getDay();
         const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -2539,13 +2611,15 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
         // Carregar hores festius d'aquesta setmana
         const stored = localStorage.getItem('holidayHours_' + weekStartStr);
         if (stored) {
-          const weekHolidayHours = JSON.parse(stored);
-          Object.keys(weekHolidayHours).forEach(date => {
-            if (date >= from && date <= to) {
-              if (!allHolidayHoursInPeriod[date]) allHolidayHoursInPeriod[date] = {};
-              Object.assign(allHolidayHoursInPeriod[date], weekHolidayHours[date]);
-            }
-          });
+          try {
+            const weekHolidayHours = JSON.parse(stored);
+            Object.keys(weekHolidayHours).forEach(date => {
+              if (date >= from && date <= to) {
+                if (!allHolidayHoursInPeriod[date]) allHolidayHoursInPeriod[date] = {};
+                Object.assign(allHolidayHoursInPeriod[date], weekHolidayHours[date]);
+              }
+            });
+          } catch(e) {}
         }
         
         // Avançar a la següent setmana
@@ -2559,14 +2633,15 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
         byWorker[s.worker_name].shifts.push(s);
       });
       
-      // Afegir hores festius per cada treballador visible
+      // Afegir hores festius per cada treballador visible (només si > 0)
       Object.keys(allHolidayHoursInPeriod).forEach(date => {
         Object.keys(allHolidayHoursInPeriod[date]).forEach(workerName => {
-          if (visibleWorkers.includes(workerName)) {
+          const hours = allHolidayHoursInPeriod[date][workerName];
+          if (visibleWorkers.includes(workerName) && hours > 0) {
             if (!byWorker[workerName]) byWorker[workerName] = { shifts: [], holidayHours: [] };
             byWorker[workerName].holidayHours.push({
               date: date,
-              hours: allHolidayHoursInPeriod[date][workerName]
+              hours: hours
             });
           }
         });
@@ -2577,7 +2652,9 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
       // Carregar hores previstes de cada setmana
       const plannedByWeek = {};
       currentDate = new Date(fromDate);
-      while (currentDate <= toDate) {
+      safetyCounter = 0;
+      while (currentDate <= toDate && safetyCounter < 52) {
+        safetyCounter++;
         const dayOfWeek = currentDate.getDay();
         const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
         const weekStart = new Date(currentDate);
@@ -2586,7 +2663,9 @@ Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha tre
         
         const stored = localStorage.getItem('plannedHours_' + weekStartStr);
         if (stored) {
-          plannedByWeek[weekStartStr] = JSON.parse(stored);
+          try {
+            plannedByWeek[weekStartStr] = JSON.parse(stored);
+          } catch(e) {}
         }
         currentDate.setDate(currentDate.getDate() + 7);
       }
