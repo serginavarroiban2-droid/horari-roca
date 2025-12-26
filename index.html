@@ -544,21 +544,34 @@
 
     .handle:hover::after { background: #3b82f6; }
 
-    /* Botons d'acció mòbil - ocults per defecte */
-    .mobile-action-buttons {
-      display: none;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      flex-direction: row;
-      gap: 6px;
-      z-index: 200;
-      pointer-events: auto;
-    }
-
-    .shift-block.show-actions .mobile-action-buttons {
+    /* Popup d'accions mòbil - separat dels shift-blocks */
+    .mobile-actions-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 1000;
       display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+    
+    .mobile-actions-popup.hidden {
+      display: none;
+    }
+    
+    .mobile-actions-popup .popup-content {
+      display: flex;
+      flex-direction: row;
+      gap: 12px;
+      background: rgba(255,255,255,0.95);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
 
     .mobile-action-btn {
@@ -566,24 +579,35 @@
       color: #fff;
       cursor: pointer;
       font-size: 12px;
-      padding: 8px 10px;
-      min-width: 50px;
-      height: 36px;
-      border-radius: 8px;
+      padding: 15px 20px;
+      min-width: 80px;
+      height: auto;
+      border-radius: 16px;
       font-weight: 600;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       display: flex;
       align-items: center;
       justify-content: center;
       flex-direction: column;
-      gap: 2px;
+      gap: 6px;
     }
 
-    .mobile-action-btn span { font-size: 14px; }
+    .mobile-action-btn span { font-size: 28px; }
 
     .mobile-action-btn.move { background: #3b82f6; }
     .mobile-action-btn.edit { background: #f59e0b; }
     .mobile-action-btn.delete { background: #ef4444; }
+    
+    .popup-cancel {
+      background: #6b7280;
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
 
     /* Botó eliminar per desktop (ocult normalment) */
     .shift-del {
@@ -1101,6 +1125,22 @@
       <button class="toast-btn" onclick="cancelMobileAction()">Cancel·lar</button>
     </div>
 
+    <!-- Popup d'accions mòbil -->
+    <div class="mobile-actions-popup hidden" id="mobileActionsPopup">
+      <div class="popup-content">
+        <button class="mobile-action-btn move" onclick="startMobileMove(selectedShiftForEdit)">
+          <span>↗</span>Moure
+        </button>
+        <button class="mobile-action-btn edit" onclick="startMobileEdit(selectedShiftForEdit)">
+          <span>✎</span>Editar
+        </button>
+        <button class="mobile-action-btn delete" onclick="deleteMobileShift()">
+          <span>✕</span>Esborrar
+        </button>
+      </div>
+      <button class="popup-cancel" onclick="cancelMobileAction()">Cancel·lar</button>
+    </div>
+
     <!-- Context menu per PC -->
     <div class="context-menu" id="contextMenu">
       <div class="context-menu-item" onclick="contextMenuNote()">📝 Afegir nota</div>
@@ -1442,8 +1482,10 @@
       }
       document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
       document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
-      document.querySelectorAll('.shift-block.show-actions').forEach(b => b.classList.remove('show-actions'));
       document.querySelectorAll('.shift-block.editing-mode').forEach(b => b.classList.remove('editing-mode'));
+      
+      // Amagar popup d'accions
+      hideMobileActionsPopup();
       
       mobileMode = null;
       selectedWorkerForPlacement = null;
@@ -1492,27 +1534,37 @@
         // Netejar estat anterior
         document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
         document.querySelectorAll('.slot-cell.start-selected').forEach(c => c.classList.remove('start-selected'));
-        document.querySelectorAll('.shift-block.show-actions').forEach(b => b.classList.remove('show-actions'));
         document.querySelectorAll('.shift-block.editing-mode').forEach(b => b.classList.remove('editing-mode'));
         hideToast();
         
-        // Mostrar botons d'acció
+        // Mostrar popup d'accions
         selectedShiftForEdit = shiftId;
         mobileMode = 'select-action';
         mobileEditStart = null;
         selectedWorkerForPlacement = null;
         
-        renderShifts(); // Re-renderitzar per mostrar botons
-        showToast('Selecciona acció o toca fora per cancel·lar');
+        document.getElementById('mobileActionsPopup').classList.remove('hidden');
       }, LONG_PRESS_DURATION);
     }
 
+    function hideMobileActionsPopup() {
+      document.getElementById('mobileActionsPopup').classList.add('hidden');
+    }
+
+    function deleteMobileShift() {
+      if (selectedShiftForEdit !== null) {
+        deleteShift(selectedShiftForEdit);
+      }
+      cancelMobileAction();
+    }
+
     function startMobileMove(shiftId) {
+      hideMobileActionsPopup();
+      
       selectedShiftForEdit = shiftId;
       mobileMode = 'moving';
       mobileEditStart = null;
       
-      document.querySelectorAll('.shift-block.show-actions').forEach(b => b.classList.remove('show-actions'));
       document.querySelectorAll('.slot-cell').forEach(c => c.classList.add('placement-mode'));
       
       renderShifts();
@@ -1520,13 +1572,13 @@
     }
 
     function startMobileEdit(shiftId) {
+      hideMobileActionsPopup();
+      
       selectedShiftForEdit = shiftId;
       mobileMode = 'editing';
       mobileEditStart = null;
       
       const shift = shifts.find(s => s.id === shiftId);
-      
-      document.querySelectorAll('.shift-block.show-actions').forEach(b => b.classList.remove('show-actions'));
       
       // Marcar cel·les del mateix dia/carril (incloent les del torn)
       if (shift) {
@@ -2282,32 +2334,6 @@
         }
 
         if (canEdit()) {
-          // Botons d'acció mòbil (moure, editar, esborrar)
-          if (isMobileDevice) {
-            const actionButtons = document.createElement('div');
-            actionButtons.className = 'mobile-action-buttons';
-            
-            const moveBtn = document.createElement('button');
-            moveBtn.className = 'mobile-action-btn move';
-            moveBtn.innerHTML = '<span>↗</span>Moure';
-            moveBtn.addEventListener('click', e => { e.stopPropagation(); startMobileMove(shift.id); });
-            
-            const editBtn = document.createElement('button');
-            editBtn.className = 'mobile-action-btn edit';
-            editBtn.innerHTML = '<span>✎</span>Editar';
-            editBtn.addEventListener('click', e => { e.stopPropagation(); startMobileEdit(shift.id); });
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'mobile-action-btn delete';
-            deleteBtn.innerHTML = '<span>✕</span>Esborrar';
-            deleteBtn.addEventListener('click', e => { e.stopPropagation(); deleteShift(shift.id); cancelMobileAction(); });
-            
-            actionButtons.appendChild(moveBtn);
-            actionButtons.appendChild(editBtn);
-            actionButtons.appendChild(deleteBtn);
-            block.appendChild(actionButtons);
-          }
-
           // Desktop handles
           const handleTop = document.createElement('div');
           handleTop.className = 'handle top';
@@ -2321,7 +2347,6 @@
 
           if (isMobileDevice) {
             block.addEventListener('touchstart', (e) => {
-              if (e.target.closest('.mobile-action-buttons')) return;
               startShiftLongPress(shift.id, block);
             }, { passive: true });
             block.addEventListener('touchend', clearLongPress);
@@ -2330,7 +2355,6 @@
 
             // Tap per seleccionar cel·la del propi torn durant edició
             block.addEventListener('click', (e) => {
-              if (e.target.closest('.mobile-action-buttons')) return;
               if (mobileMode === 'editing' && selectedShiftForEdit === shift.id) {
                 // Calcular slot basat en posició del clic
                 const rect = block.getBoundingClientRect();
@@ -2484,30 +2508,103 @@
       if (!from || !to) { setStatus('Selecciona dates', true); return; }
 
       const { data } = await supabaseClient.from('shifts').select('*').gte('date', from).lte('date', to).order('worker_name').order('date').order('start_time');
-      if (!data?.length) { setStatus('No hi ha torns', true); return; }
-
+      
       // Filtrar només treballadors visibles
       const visibleWorkers = workers.filter(w => w.selected !== false).map(w => w.name);
-      const filteredData = data.filter(s => visibleWorkers.includes(s.worker_name));
+      const filteredData = (data || []).filter(s => visibleWorkers.includes(s.worker_name));
+
+      // Carregar hores festius de totes les setmanes del període
+      const allHolidayHoursInPeriod = {};
+      const fromDate = parseISODate(from);
+      const toDate = parseISODate(to);
       
-      if (!filteredData.length) { setStatus('No hi ha torns visibles', true); return; }
+      // Iterar per cada setmana del període
+      let currentDate = new Date(fromDate);
+      while (currentDate <= toDate) {
+        // Trobar dilluns de la setmana
+        const dayOfWeek = currentDate.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const weekStart = new Date(currentDate);
+        weekStart.setDate(currentDate.getDate() + diff);
+        const weekStartStr = formatISO(weekStart);
+        
+        // Carregar hores festius d'aquesta setmana
+        const stored = localStorage.getItem('holidayHours_' + weekStartStr);
+        if (stored) {
+          const weekHolidayHours = JSON.parse(stored);
+          Object.keys(weekHolidayHours).forEach(date => {
+            if (date >= from && date <= to) {
+              if (!allHolidayHoursInPeriod[date]) allHolidayHoursInPeriod[date] = {};
+              Object.assign(allHolidayHoursInPeriod[date], weekHolidayHours[date]);
+            }
+          });
+        }
+        
+        // Avançar a la següent setmana
+        currentDate.setDate(currentDate.getDate() + 7);
+      }
 
       // Agrupar per treballador
       const byWorker = {};
       filteredData.forEach(s => {
-        if (!byWorker[s.worker_name]) byWorker[s.worker_name] = [];
-        byWorker[s.worker_name].push(s);
+        if (!byWorker[s.worker_name]) byWorker[s.worker_name] = { shifts: [], holidayHours: [] };
+        byWorker[s.worker_name].shifts.push(s);
       });
+      
+      // Afegir hores festius per cada treballador visible
+      Object.keys(allHolidayHoursInPeriod).forEach(date => {
+        Object.keys(allHolidayHoursInPeriod[date]).forEach(workerName => {
+          if (visibleWorkers.includes(workerName)) {
+            if (!byWorker[workerName]) byWorker[workerName] = { shifts: [], holidayHours: [] };
+            byWorker[workerName].holidayHours.push({
+              date: date,
+              hours: allHolidayHoursInPeriod[date][workerName]
+            });
+          }
+        });
+      });
+
+      if (!Object.keys(byWorker).length) { setStatus('No hi ha torns ni hores festius', true); return; }
+
+      // Carregar hores previstes de cada setmana
+      const plannedByWeek = {};
+      currentDate = new Date(fromDate);
+      while (currentDate <= toDate) {
+        const dayOfWeek = currentDate.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const weekStart = new Date(currentDate);
+        weekStart.setDate(currentDate.getDate() + diff);
+        const weekStartStr = formatISO(weekStart);
+        
+        const stored = localStorage.getItem('plannedHours_' + weekStartStr);
+        if (stored) {
+          plannedByWeek[weekStartStr] = JSON.parse(stored);
+        }
+        currentDate.setDate(currentDate.getDate() + 7);
+      }
 
       // Generar HTML del report
       let workersHtml = '';
       
       Object.keys(byWorker).sort().forEach(workerName => {
-        const workerShifts = byWorker[workerName];
-        const prevHours = plannedHours[workerName] || 0;
+        const workerData = byWorker[workerName];
+        const workerShifts = workerData.shifts;
+        const workerHolidayHours = workerData.holidayHours;
+        
+        // Calcular hores previstes (suma de totes les setmanes)
+        let totalPrevHours = 0;
+        Object.keys(plannedByWeek).forEach(weekStr => {
+          if (plannedByWeek[weekStr][workerName]) {
+            totalPrevHours += plannedByWeek[weekStr][workerName];
+          }
+        });
+        
         let totalMins = 0;
+        let totalHolidayMins = 0;
         
         let shiftsHtml = '';
+        
+        // Afegir torns reals
         workerShifts.forEach(s => {
           const [sh, sm] = s.start_time.split(':').map(Number);
           const [eh, em] = s.end_time.split(':').map(Number);
@@ -2522,11 +2619,28 @@
             <td>${dayType}</td>
             <td>${s.start_time} - ${s.end_time}</td>
             <td class="hours">${formatHoursFromMinutes(mins)}</td>
+            <td></td>
+          </tr>`;
+        });
+        
+        // Afegir hores festius (no treballades)
+        workerHolidayHours.sort((a, b) => a.date.localeCompare(b.date)).forEach(hh => {
+          const mins = hh.hours * 60;
+          totalHolidayMins += mins;
+          
+          shiftsHtml += `<tr class="holiday-row">
+            <td>${hh.date}</td>
+            <td>Festiu</td>
+            <td>-</td>
+            <td class="hours">${formatHoursFromMinutes(mins)}</td>
+            <td class="note">⚠️ No treballat (festiu compensat)</td>
           </tr>`;
         });
         
         const realHours = totalMins / 60;
-        const diff = realHours - prevHours;
+        const holidayHours = totalHolidayMins / 60;
+        const totalHours = realHours + holidayHours;
+        const diff = totalHours - totalPrevHours;
         const diffSign = diff >= 0 ? '+' : '';
         const diffClass = diff >= 0 ? 'positive' : 'negative';
         
@@ -2534,12 +2648,14 @@
           <div class="worker-section">
             <h2>${workerName}</h2>
             <div class="totals">
-              <span>Previstes: <strong>${prevHours}h</strong></span>
+              <span>Previstes: <strong>${totalPrevHours}h</strong></span>
               <span>Treballades: <strong>${formatHoursFromMinutes(totalMins)}</strong></span>
+              ${holidayHours > 0 ? `<span class="holiday-total">Festius: <strong>+${holidayHours.toFixed(1)}h</strong></span>` : ''}
+              <span>Total: <strong>${totalHours.toFixed(1)}h</strong></span>
               <span class="${diffClass}">Diferència: <strong>${diffSign}${diff.toFixed(1)}h</strong></span>
             </div>
             <table>
-              <tr><th>Data</th><th>Tipus</th><th>Horari</th><th>Hores</th></tr>
+              <tr><th>Data</th><th>Tipus</th><th>Horari</th><th>Hores</th><th>Nota</th></tr>
               ${shiftsHtml}
             </table>
           </div>
@@ -2549,18 +2665,21 @@
       const html = `<!DOCTYPE html>
 <html><head><title>Resum d'hores</title>
 <style>
-  body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+  body { font-family: system-ui; padding: 20px; max-width: 900px; margin: 0 auto; }
   h1 { color: #1f2937; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
   .period { color: #6b7280; margin-bottom: 20px; }
   .worker-section { margin-bottom: 30px; page-break-inside: avoid; }
   .worker-section h2 { color: #1f2937; background: #dbeafe; padding: 8px 12px; border-radius: 6px; margin: 0 0 10px; }
-  .totals { display: flex; gap: 20px; margin-bottom: 10px; font-size: 14px; }
+  .totals { display: flex; gap: 20px; margin-bottom: 10px; font-size: 14px; flex-wrap: wrap; }
   .totals .positive { color: #059669; }
   .totals .negative { color: #dc2626; }
+  .totals .holiday-total { color: #d97706; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
   th { background: #f9fafb; font-weight: 600; }
   td.hours { text-align: right; }
+  td.note { font-size: 11px; color: #d97706; font-style: italic; }
+  tr.holiday-row { background: #fffbeb; }
   @media print { .no-print { display: none; } }
 </style>
 </head><body>
