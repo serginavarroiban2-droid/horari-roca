@@ -404,6 +404,9 @@
     .cell.slot-cell.placement-mode { background: #dbeafe; }
     .cell.slot-cell.start-selected { background: #86efac !important; box-shadow: inset 0 0 0 2px #22c55e; }
     .cell.slot-cell.end-selected { background: #fca5a5 !important; box-shadow: inset 0 0 0 2px #ef4444; }
+    
+    /* Línies horitzontals fines per cada hora */
+    .cell.slot-cell.hour-line { border-top: 1px solid rgba(156, 163, 175, 0.3); }
 
     .narrow-col { background: #f9fafb; }
     .day-separator { border-right: 2px solid #9ca3af !important; }
@@ -621,6 +624,67 @@
 
     #status { font-size: 11px; color: #059669; margin-left: auto; min-height: 14px; }
 
+    /* ========== HOLIDAY HOURS SECTION ========== */
+    .holiday-hours-section {
+      margin-top: 10px;
+      padding: 10px;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+    }
+    
+    .holiday-hours-section h4 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: #92400e;
+    }
+    
+    .holiday-hours-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    
+    .holiday-day-box {
+      background: white;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 8px;
+      min-width: 180px;
+    }
+    
+    .holiday-day-box h5 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      color: #dc2626;
+      font-weight: 600;
+    }
+    
+    .holiday-worker-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    
+    .holiday-worker-row input[type="checkbox"] {
+      margin: 0;
+    }
+    
+    .holiday-worker-row input[type="number"] {
+      width: 50px;
+      padding: 2px 4px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    
+    .holiday-worker-row .worker-name {
+      flex: 1;
+      min-width: 80px;
+    }
+
     /* ========== MOBILE TOAST ========== */
     .mobile-toast {
       position: fixed;
@@ -723,17 +787,21 @@
         font-size: 0 !important;
         border-width: 3px !important;
         justify-content: center !important;
+        background: transparent !important;
+        overflow: hidden !important;
       }
 
       .worker-row.selected .worker { box-shadow: 0 0 0 3px #111827 !important; }
 
       .worker-color {
+        position: absolute !important;
+        inset: 0 !important;
         width: 100% !important;
         height: 100% !important;
         border-radius: 50% !important;
       }
 
-      .worker span { display: none !important; }
+      .worker span:not(.worker-color) { display: none !important; }
 
       .worker::after {
         content: attr(data-initials) !important;
@@ -744,7 +812,9 @@
         justify-content: center !important;
         font-size: 18px !important;
         font-weight: 700 !important;
-        color: #111827 !important;
+        color: #fff !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+        z-index: 1 !important;
       }
 
       .right {
@@ -840,17 +910,21 @@
         font-size: 0 !important;
         border-width: 3px !important;
         justify-content: center !important;
+        background: transparent !important;
+        overflow: hidden !important;
       }
 
       .worker-row.selected .worker { box-shadow: 0 0 0 3px #111827 !important; }
 
       .worker-color {
+        position: absolute !important;
+        inset: 0 !important;
         width: 100% !important;
         height: 100% !important;
         border-radius: 50% !important;
       }
 
-      .worker span { display: none !important; }
+      .worker span:not(.worker-color) { display: none !important; }
 
       .worker::after {
         content: attr(data-initials) !important;
@@ -861,7 +935,9 @@
         justify-content: center !important;
         font-size: 16px !important;
         font-weight: 700 !important;
-        color: #111827 !important;
+        color: #fff !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+        z-index: 1 !important;
       }
 
       .right {
@@ -978,6 +1054,14 @@
             <button id="clearBtn">Netejar</button>
             <div id="status"></div>
           </div>
+          
+          <!-- Secció hores festius (només admin, només PC) -->
+          <div class="holiday-hours-section hidden" id="holidayHoursSection">
+            <h4>📅 Hores festius (es sumen a les hores treballades)</h4>
+            <div class="holiday-hours-grid" id="holidayHoursGrid">
+              <!-- Es genera dinàmicament -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1029,6 +1113,7 @@
     let saveTimeout = null;
     let slotHeightRuntime = 26;
     let plannedHours = {}; // {workerName: hours}
+    let holidayHours = {}; // {date: {workerName: hours}}
 
     // Mobile state
     let mobileMode = null;
@@ -1206,7 +1291,6 @@
 
       buildWeekGrid();
       loadWeek();
-      loadPlannedHours();
 
       // Desktop events
       document.addEventListener('pointermove', onPointerMoveGlobal);
@@ -1396,15 +1480,12 @@
         blockElement.classList.add('show-delete');
         blockElement.classList.add('editing-mode');
         
-        // Marcar cel·les disponibles per editar
-        const shift = shifts.find(s => s.id === shiftId);
-        if (shift) {
-          document.querySelectorAll(`.slot-cell[data-day="${shift.dayIndex}"][data-lane="${shift.laneIndex}"]`).forEach(c => {
-            c.classList.add('placement-mode');
-          });
-        }
+        // Marcar TOTES les cel·les disponibles per moure
+        document.querySelectorAll('.slot-cell').forEach(c => {
+          c.classList.add('placement-mode');
+        });
         
-        showToast('✏️ Toca nou INICI o ✕ per eliminar');
+        showToast('✏️ Toca nou INICI (qualsevol lloc) o ✕');
       }, LONG_PRESS_DURATION);
     }
 
@@ -1438,31 +1519,39 @@
         }
       }
       
-      // Mode editar torn existent
+      // Mode editar/moure torn existent
       if (mobileMode === 'editing' && selectedShiftForEdit) {
         const shift = shifts.find(s => s.id === selectedShiftForEdit);
         if (!shift) { cancelMobileAction(); return; }
         
-        // Només permetre editar en el mateix dia i carril
-        if (dayIndex !== shift.dayIndex || laneIndex !== shift.laneIndex) {
-          setStatus('Edita dins el mateix dia/carril', true);
-          return;
-        }
-        
         if (!mobileEditStart) {
-          // Primer toc: nou inici
-          mobileEditStart = { slot: slotIndex };
+          // Primer toc: nou inici (pot ser a qualsevol lloc)
+          mobileEditStart = { day: dayIndex, lane: laneIndex, slot: slotIndex };
           document.querySelectorAll('.slot-cell.placement-mode').forEach(c => c.classList.remove('placement-mode'));
           const startCell = document.querySelector(`.slot-cell[data-day="${dayIndex}"][data-lane="${laneIndex}"][data-slot="${slotIndex}"]`);
           if (startCell) startCell.classList.add('start-selected');
-          showToast('2️⃣ Toca nou FINAL del torn');
+          
+          // Marcar cel·les del mateix dia/carril per definir final
+          document.querySelectorAll(`.slot-cell[data-day="${dayIndex}"][data-lane="${laneIndex}"]`).forEach(c => {
+            c.classList.add('placement-mode');
+          });
+          
+          showToast('2️⃣ Toca FINAL del torn');
         } else {
-          // Segon toc: nou final
+          // Segon toc: nou final (ha de ser al mateix dia/carril que l'inici)
+          if (dayIndex !== mobileEditStart.day || laneIndex !== mobileEditStart.lane) {
+            setStatus('Final ha de ser al mateix dia/carril que inici', true);
+            return;
+          }
+          
           const newStart = Math.min(mobileEditStart.slot, slotIndex);
           const newEnd = Math.max(mobileEditStart.slot, slotIndex) + 1;
           
-          // Comprovar solapament
-          if (!hasOverlap(shift.dayIndex, shift.laneIndex, newStart, newEnd, shift.id)) {
+          // Comprovar solapament (excloent el torn que estem editant)
+          if (!hasOverlap(mobileEditStart.day, mobileEditStart.lane, newStart, newEnd, shift.id)) {
+            // Moure el torn
+            shift.dayIndex = mobileEditStart.day;
+            shift.laneIndex = mobileEditStart.lane;
             shift.startSlot = newStart;
             shift.endSlot = newEnd;
             scheduleAutoSave();
@@ -1473,6 +1562,16 @@
           cancelMobileAction();
         }
       }
+    }
+
+    // Permetre tocar sobre el propi shift-block per seleccionar inici/final
+    function handleShiftTapForEditing(shift, slotIndex) {
+      if (mobileMode !== 'editing' || selectedShiftForEdit !== shift.id) return;
+      
+      const dayIndex = shift.dayIndex;
+      const laneIndex = shift.laneIndex;
+      
+      handleCellTapMobile(dayIndex, laneIndex, slotIndex);
     }
 
     function createShiftWithRange(workerName, dayIndex, laneIndex, startSlot, endSlot) {
@@ -1488,22 +1587,107 @@
       setStatus(`Torn creat: ${workerName}`, false);
     }
 
-    // ========== PLANNED HOURS ==========
+    // ========== PLANNED HOURS (per setmana) ==========
     function loadPlannedHours() {
-      const stored = localStorage.getItem('plannedHours');
+      if (!currentWeekStart) return;
+      const stored = localStorage.getItem('plannedHours_' + currentWeekStart);
       if (stored) {
         plannedHours = JSON.parse(stored);
+      } else {
+        plannedHours = {};
       }
     }
 
     function savePlannedHours() {
-      localStorage.setItem('plannedHours', JSON.stringify(plannedHours));
+      if (!currentWeekStart) return;
+      localStorage.setItem('plannedHours_' + currentWeekStart, JSON.stringify(plannedHours));
     }
 
     function updatePlannedHours(workerName, hours) {
       plannedHours[workerName] = parseFloat(hours) || 0;
       savePlannedHours();
       updateSummary();
+    }
+
+    // ========== HOLIDAY HOURS (hores festius) ==========
+    function loadHolidayHours() {
+      if (!currentWeekStart) return;
+      const stored = localStorage.getItem('holidayHours_' + currentWeekStart);
+      if (stored) {
+        holidayHours = JSON.parse(stored);
+      } else {
+        holidayHours = {};
+      }
+    }
+
+    function saveHolidayHours() {
+      if (!currentWeekStart) return;
+      localStorage.setItem('holidayHours_' + currentWeekStart, JSON.stringify(holidayHours));
+    }
+
+    function updateHolidayHours(date, workerName, hours, enabled) {
+      if (!holidayHours[date]) holidayHours[date] = {};
+      if (enabled && hours > 0) {
+        holidayHours[date][workerName] = parseFloat(hours) || 0;
+      } else {
+        delete holidayHours[date][workerName];
+      }
+      saveHolidayHours();
+      updateSummary();
+    }
+
+    function renderHolidayHoursSection() {
+      const section = document.getElementById('holidayHoursSection');
+      const grid = document.getElementById('holidayHoursGrid');
+      
+      // Només mostrar si és admin, no és mòbil, i hi ha festius aquesta setmana
+      if (currentUserRole !== 'admin' || isMobileDevice || weekHolidays.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      
+      section.classList.remove('hidden');
+      grid.innerHTML = '';
+      
+      weekHolidays.forEach(date => {
+        const dayDate = parseISODate(date);
+        const dayIndex = Math.round((dayDate - parseISODate(currentWeekStart)) / 86400000);
+        const dayName = DAYS[dayIndex] || '';
+        
+        const box = document.createElement('div');
+        box.className = 'holiday-day-box';
+        
+        let html = `<h5>🔴 ${dayName} ${dayDate.getDate()}/${dayDate.getMonth()+1}</h5>`;
+        
+        workers.forEach(w => {
+          const savedHours = holidayHours[date]?.[w.name] || 0;
+          const isEnabled = savedHours > 0;
+          
+          html += `
+            <div class="holiday-worker-row">
+              <input type="checkbox" ${isEnabled ? 'checked' : ''} 
+                     onchange="updateHolidayHours('${date}', '${w.name}', this.parentElement.querySelector('input[type=number]').value, this.checked)">
+              <span class="worker-name">${w.name}</span>
+              <input type="number" value="${savedHours || 8}" step="0.5" min="0" max="24"
+                     onchange="updateHolidayHours('${date}', '${w.name}', this.value, this.parentElement.querySelector('input[type=checkbox]').checked)">
+              <span>h</span>
+            </div>
+          `;
+        });
+        
+        box.innerHTML = html;
+        grid.appendChild(box);
+      });
+    }
+
+    function getHolidayHoursForWorker(workerName) {
+      let total = 0;
+      weekHolidays.forEach(date => {
+        if (holidayHours[date]?.[workerName]) {
+          total += holidayHours[date][workerName];
+        }
+      });
+      return total;
     }
 
     // ========== FESTIUS ==========
@@ -1644,7 +1828,15 @@
       if (!box) return;
       
       const visible = shifts.filter(s => isWorkerSelected(s.worker));
-      if (!visible.length) { box.textContent = 'Cap torn encara.'; return; }
+      
+      // Obtenir tots els treballadors visibles (incloent els que no tenen torns però tenen hores festius)
+      const allWorkerNames = new Set();
+      visible.forEach(s => allWorkerNames.add(s.worker));
+      workers.filter(w => w.selected !== false).forEach(w => {
+        if (getHolidayHoursForWorker(w.name) > 0) allWorkerNames.add(w.name);
+      });
+      
+      if (!allWorkerNames.size) { box.textContent = 'Cap torn encara.'; return; }
 
       const totals = {};
       const holidayWork = {};
@@ -1656,18 +1848,22 @@
         if (allHolidays.includes(formatISO(shiftDate))) holidayWork[s.worker] = true;
       });
 
-      let html = '<table><tr><th>Treballador</th><th>Reals</th><th>Prev.</th><th>Dif.</th></tr>';
-      Object.keys(totals).sort().forEach(name => {
+      let html = '<table><tr><th>Treballador</th><th>Reals</th><th>Fest.</th><th>Prev.</th><th>Dif.</th></tr>';
+      Array.from(allWorkerNames).sort().forEach(name => {
         const icon = holidayWork[name] ? '<span class="holiday-warning">⚠️</span>' : '';
-        const realHours = parseFloat(formatHoursDecimal(totals[name]));
+        const slotsHours = totals[name] || 0;
+        const realHoursFromSlots = parseFloat(formatHoursDecimal(slotsHours));
+        const festiuHours = getHolidayHoursForWorker(name);
+        const totalReal = realHoursFromSlots + festiuHours;
         const prevHours = plannedHours[name] || 0;
-        const diff = realHours - prevHours;
+        const diff = totalReal - prevHours;
         const diffClass = diff >= 0 ? 'diff-positive' : 'diff-negative';
         const diffSign = diff >= 0 ? '+' : '';
         
         html += `<tr>
           <td>${name}${icon}</td>
-          <td class="hours">${formatHoursFromSlots(totals[name])}</td>
+          <td class="hours">${formatHoursFromSlots(slotsHours)}</td>
+          <td class="hours" style="color:#dc2626;">${festiuHours > 0 ? '+' + festiuHours + 'h' : '-'}</td>
           <td><input type="number" class="prev-hours" value="${prevHours}" step="0.5" min="0" onchange="updatePlannedHours('${name}', this.value)"></td>
           <td class="hours ${diffClass}">${diffSign}${diff.toFixed(1)}h</td>
         </tr>`;
@@ -1772,6 +1968,8 @@
             const cell = document.createElement('div');
             let cellClass = 'cell slot-cell';
             if (lane === LANES_PER_DAY - 1) cellClass += ' narrow-col day-separator store-separator';
+            // Afegir línia horitzontal fina a cada hora (cada 2 slots)
+            if (slot > 0 && slot % SLOTS_PER_HOUR === 0) cellClass += ' hour-line';
             cell.className = cellClass;
             cell.style.cssText = `grid-row:${2 + slot};grid-column:${2 + d * LANES_PER_DAY + lane}`;
             cell.dataset.day = String(d);
@@ -1915,6 +2113,10 @@
         renderShifts();
         updateWeekHeaderAndHolidays(currentWeekStart, weekHolidays);
         adjustSlotHeight();
+        loadPlannedHours(); // Carregar hores previstes per aquesta setmana
+        loadHolidayHours(); // Carregar hores festius per aquesta setmana
+        renderHolidayHoursSection(); // Renderitzar secció hores festius
+        updateSummary();
         setStatus('✅ Carregat', false);
         updateSaveIndicator('saved');
       } catch (error) {
