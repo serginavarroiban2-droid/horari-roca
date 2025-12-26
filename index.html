@@ -1128,10 +1128,10 @@
     <!-- Popup d'accions mòbil -->
     <div class="mobile-actions-popup hidden" id="mobileActionsPopup">
       <div class="popup-content">
-        <button class="mobile-action-btn move" onclick="startMobileMove(selectedShiftForEdit)">
+        <button class="mobile-action-btn move" onclick="onMobileMove()">
           <span>↗</span>Moure
         </button>
-        <button class="mobile-action-btn edit" onclick="startMobileEdit(selectedShiftForEdit)">
+        <button class="mobile-action-btn edit" onclick="onMobileEdit()">
           <span>✎</span>Editar
         </button>
         <button class="mobile-action-btn delete" onclick="deleteMobileShift()">
@@ -1556,6 +1556,19 @@
         deleteShift(selectedShiftForEdit);
       }
       cancelMobileAction();
+    }
+
+    // Funcions wrapper per als botons del popup
+    function onMobileMove() {
+      if (selectedShiftForEdit !== null) {
+        startMobileMove(selectedShiftForEdit);
+      }
+    }
+
+    function onMobileEdit() {
+      if (selectedShiftForEdit !== null) {
+        startMobileEdit(selectedShiftForEdit);
+      }
     }
 
     function startMobileMove(shiftId) {
