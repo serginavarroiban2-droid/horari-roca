@@ -1150,10 +1150,7 @@
 
   <script>
     // ========== CONFIGURACIÓ SUPABASE ==========
-    const SUPABASE_URL = 'https://zwxismquyhyeufdmtgsw.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eGlzbXF1eWh5ZXVmZG10Z3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMzYxODYsImV4cCI6MjA4MTkxMjE4Nn0.ewU3PFuJoW8UfaK6jZqvqjm9PJ0s5citTjd9Xuzypt0';
-
-    let supabaseClient;
+Al resum pdf quan hi ha un festiu d'aquests que esta marcat pero que no s'ha treballat, no ha de sortir "Festius: +8.0h" en tronja. En canvi si que hi ha de sortir quan el torn està posat a la graella.    let supabaseClient;
     let currentUser = null;
     let currentUserRole = 'treballador';
     let currentUserName = '';
@@ -2661,7 +2658,6 @@
             <div class="totals">
               <span>Previstes: <strong>${totalPrevHours}h</strong></span>
               <span>Treballades: <strong>${formatHoursFromMinutes(totalMins)}</strong></span>
-              ${holidayHours > 0 ? `<span class="holiday-total">Festius: <strong>+${holidayHours.toFixed(1)}h</strong></span>` : ''}
               <span>Total: <strong>${totalHours.toFixed(1)}h</strong></span>
               <span class="${diffClass}">Diferència: <strong>${diffSign}${diff.toFixed(1)}h</strong></span>
             </div>
@@ -2684,7 +2680,6 @@
   .totals { display: flex; gap: 20px; margin-bottom: 10px; font-size: 14px; flex-wrap: wrap; }
   .totals .positive { color: #059669; }
   .totals .negative { color: #dc2626; }
-  .totals .holiday-total { color: #d97706; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb; }
   th { background: #f9fafb; font-weight: 600; }
