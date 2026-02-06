@@ -236,9 +236,10 @@ async function syncShiftsForWorker(supabase: any, accessToken: string, workerNam
 
   // 4. Netejar Orfes (Events a Google que no tenen shift corresponent a BD)
   // Això resol el cas "He esborrat el shift a l'app però segueix al calendari"
-  // Només esborrem events que semblin torns (per seguretat, tot i que el calendari és dedicat)
+  // Ara incloem 'Roca' i 'Rambla' a més de 'Torn'
   for (const ev of googleEvents) {
-    if (ev.summary === "Torn" || (ev.summary && ev.summary.startsWith("Torn"))) {
+    const sum = ev.summary || "";
+    if (sum === "Torn" || sum.startsWith("Torn") || sum === "Roca" || sum === "Rambla") {
       await deleteEvent(accessToken, calendarId, ev.id);
     }
   }
