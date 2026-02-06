@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
-import '../config/supabase_config.dart';
 
 // Provider per a l'estat d'autenticació
 final authStateProvider = StreamProvider<AuthState>((ref) {
@@ -28,13 +27,31 @@ final userRoleProvider = FutureProvider<UserRole?>((ref) async {
   return UserRole.fromJson(response);
 });
 
-// Provider per a la setmana actual
-final currentWeekProvider = StateProvider<DateTime>((ref) {
-  final now = DateTime.now();
-  // Obtenir el dilluns de la setmana actual
-  final monday = now.subtract(Duration(days: now.weekday - 1));
-  return DateTime(monday.year, monday.month, monday.day);
-});
+// Provider per a la setmana actual (usando NotifierProvider)
+class CurrentWeekNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    return DateTime(monday.year, monday.month, monday.day);
+  }
+  
+  void setWeek(DateTime date) {
+    state = date;
+  }
+  
+  void nextWeek() {
+    state = state.add(const Duration(days: 7));
+  }
+  
+  void previousWeek() {
+    state = state.subtract(const Duration(days: 7));
+  }
+}
+
+final currentWeekProvider = NotifierProvider<CurrentWeekNotifier, DateTime>(
+  CurrentWeekNotifier.new,
+);
 
 // Provider per als treballadors
 final workersProvider = FutureProvider<List<Worker>>((ref) async {
@@ -79,59 +96,31 @@ final workerShiftsProvider = FutureProvider.family<List<Shift>, String>((ref, wo
 });
 
 // Provider per al mode fosc
-final darkModeProvider = StateProvider<bool>((ref) => false);
-
-// Provider per a l'estat de guardat
-final savingStateProvider = StateProvider<SavingState>((ref) => SavingState.idle);
-
-enum SavingState { idle, saving, saved, error }
-
-// Notifier per a accions amb torns
-class ShiftNotifier extends StateNotifier<AsyncValue<void>> {
-  ShiftNotifier() : super(const AsyncValue.data(null));
+class DarkModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
   
-  Future<void> createShift(Shift shift) async {
-    state = const AsyncValue.loading();
-    try {
-      await Supabase.instance.client
-          .from('shifts')
-          .insert(shift.toJson());
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-  
-  Future<void> updateShift(int id, Shift shift) async {
-    state = const AsyncValue.loading();
-    try {
-      await Supabase.instance.client
-          .from('shifts')
-          .update(shift.toJson())
-          .eq('id', id);
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-  
-  Future<void> deleteShift(int id) async {
-    state = const AsyncValue.loading();
-    try {
-      await Supabase.instance.client
-          .from('shifts')
-          .delete()
-          .eq('id', id);
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
+  void toggle() => state = !state;
+  void set(bool value) => state = value;
 }
 
-final shiftNotifierProvider = StateNotifierProvider<ShiftNotifier, AsyncValue<void>>((ref) {
-  return ShiftNotifier();
-});
+final darkModeProvider = NotifierProvider<DarkModeNotifier, bool>(
+  DarkModeNotifier.new,
+);
+
+// Provider per a l'estat de guardat
+enum SavingState { idle, saving, saved, error }
+
+class SavingStateNotifier extends Notifier<SavingState> {
+  @override
+  SavingState build() => SavingState.idle;
+  
+  void set(SavingState value) => state = value;
+}
+
+final savingStateProvider = NotifierProvider<SavingStateNotifier, SavingState>(
+  SavingStateNotifier.new,
+);
 
 // Helper per formatar dates
 String _formatDate(DateTime date) {

@@ -143,8 +143,7 @@ class _WeekNavigator extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () {
-              ref.read(currentWeekProvider.notifier).state = 
-                  weekStart.subtract(const Duration(days: 7));
+              ref.read(currentWeekProvider.notifier).previousWeek();
             },
           ),
           GestureDetector(
@@ -174,8 +173,7 @@ class _WeekNavigator extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () {
-              ref.read(currentWeekProvider.notifier).state = 
-                  weekStart.add(const Duration(days: 7));
+              ref.read(currentWeekProvider.notifier).nextWeek();
             },
           ),
         ],
@@ -193,8 +191,8 @@ class _WeekNavigator extends ConsumerWidget {
     if (picked != null) {
       // Obtenir dilluns de la setmana seleccionada
       final monday = picked.subtract(Duration(days: picked.weekday - 1));
-      ref.read(currentWeekProvider.notifier).state = 
-          DateTime(monday.year, monday.month, monday.day);
+      ref.read(currentWeekProvider.notifier).setWeek(
+          DateTime(monday.year, monday.month, monday.day));
     }
   }
 }
@@ -703,7 +701,7 @@ class SettingsView extends ConsumerWidget {
                 title: const Text('Mode fosc'),
                 value: isDarkMode,
                 onChanged: (value) {
-                  ref.read(darkModeProvider.notifier).state = value;
+                  ref.read(darkModeProvider.notifier).set(value);
                 },
               ),
               const Divider(height: 1),
