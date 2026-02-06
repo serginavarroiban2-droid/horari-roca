@@ -2485,10 +2485,30 @@
           });
           await supabaseClient.from('shifts').insert(shiftsToInsert);
         }
+
+        // Auto-synchronize with Google Calendar (background)
+        triggerBackgroundSync();
+
         updateSaveIndicator('saved');
       } catch (error) {
         updateSaveIndicator('error');
       }
+    }
+
+    let lastSyncTime = 0;
+    function triggerBackgroundSync() {
+      // Evitar massa crides seguides (mínim 10 segons entre syncs complets)
+      const now = Date.now();
+      if (now - lastSyncTime < 10000) return;
+      lastSyncTime = now;
+
+      // Cridem sense await per no bloquejar la UI
+      supabaseClient.functions.invoke('sync-google-calendar', {
+        body: { mode: 'full_sync' }
+      }).then(({ data, error }) => {
+        if (error) console.error('Auto-sync error:', error);
+        else console.log('Auto-sync launched:', data);
+      });
     }
 
     function updateSaveIndicator(status) {
