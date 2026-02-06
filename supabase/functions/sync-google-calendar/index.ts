@@ -65,6 +65,53 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
+    } else if (body.mode === "update_email") {
+      // Actualitzar email treballador
+      const { data: currentConfig } = await supabase
+        .from("worker_calendars")
+        .select("*")
+        .eq("worker_name", body.worker_name)
+        .single();
+
+      if (!currentConfig) throw new Error("Worker config not found");
+      const calendarId = currentConfig.google_calendar_id;
+
+      // 1. Afegir nou email al calendari
+      await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/acl`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "reader", scope: { type: "user", value: body.worker_email } }),
+      });
+
+      // 2. Intentar esborrar l'antic (si és diferent)
+      if (currentConfig.worker_email && currentConfig.worker_email !== body.worker_email) {
+        // Primer cal trobar l'ID de la regla ACL antiga.
+        // Llista les regles ACL
+        const aclRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/acl`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (aclRes.ok) {
+          const aclData = await aclRes.json();
+          const oldRule = aclData.items.find((rule: any) => rule.scope.type === 'user' && rule.scope.value === currentConfig.worker_email);
+          if (oldRule) {
+            await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/acl/${oldRule.id}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${accessToken}` }
+            });
+          }
+        }
+      }
+
+      // 3. Actualitzar BD
+      await supabase.from("worker_calendars").update({
+        worker_email: body.worker_email,
+        updated_at: new Date().toISOString(),
+      }).eq("worker_name", body.worker_name);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     } else if (body.mode === "full_sync") {
       // Sincronitzar torns
       let synced = 0;
@@ -227,11 +274,14 @@ async function createEvent(accessToken: string, calendarId: string, shift: any) 
     endDate = d.toISOString().split('T')[0];
   }
 
+  // 0-3 = Roca, 4 = Rambla
+  const locationName = (shift.lane >= 4) ? "Rambla" : "Roca";
+
   const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      summary: "Torn",
+      summary: locationName,
       description: shift.note || "",
       start: { dateTime: `${shift.date}T${shift.start_time}`, timeZone: "Europe/Madrid" },
       end: { dateTime: `${endDate}T${shift.end_time}`, timeZone: "Europe/Madrid" },
@@ -249,10 +299,13 @@ async function patchEvent(accessToken: string, calendarId: string, eventId: stri
     endDate = d.toISOString().split('T')[0];
   }
 
+  const locationName = (shift.lane >= 4) ? "Rambla" : "Roca";
+
   await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
+      summary: locationName,
       description: shift.note || "",
       start: { dateTime: `${shift.date}T${shift.start_time}`, timeZone: "Europe/Madrid" },
       end: { dateTime: `${endDate}T${shift.end_time}`, timeZone: "Europe/Madrid" },

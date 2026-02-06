@@ -146,6 +146,20 @@
       display: none !important;
     }
 
+    .icon-btn {
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: #e5e7eb;
+    }
+
     /* ========== USER BAR ========== */
     .user-bar {
       background: #1f2937;
@@ -3332,11 +3346,15 @@
         html += `
           <div class="gcal-worker-row" data-worker="${w.name}">
             <span class="worker-name" style="color: ${w.color}">● ${w.name}</span>
-            <input type="email" 
-                   placeholder="email@empresa.com" 
-                   value="${email}"
-                   id="gcal-email-${w.name.replace(/\s/g, '_')}"
-                   ${hasCalendar ? 'disabled' : ''}>
+            <div style="display:flex; align-items:center; gap:4px; flex:1;">
+                <input type="email" 
+                       placeholder="email@empresa.com" 
+                       value="${email}"
+                       id="gcal-email-${w.name.replace(/\s/g, '_')}"
+                       style="flex:1;">
+                ${hasCalendar ?
+            `<button class="icon-btn" title="Guardar nou email" onclick="updateWorkerEmail('${w.name}')">💾</button>` : ''}
+            </div>
             ${statusHtml}
             ${hasCalendar ?
             `<button class="sync-btn" onclick="syncWorkerCalendar('${w.name}')">🔄 Sync</button>` :
@@ -3347,6 +3365,44 @@
       });
 
       container.innerHTML = html || '<p style="color:#9ca3af;text-align:center;">No hi ha treballadors configurats.</p>';
+    }
+
+    async function updateWorkerEmail(workerName) {
+      const emailInput = document.getElementById(`gcal-email-${workerName.replace(/\s/g, '_')}`);
+      const email = emailInput?.value?.trim();
+
+      if (!email || !email.includes('@')) {
+        alert('Introdueix un email vàlid');
+        return;
+      }
+
+      if (!confirm(`Segur que vols canviar l'email de ${workerName} a ${email}?\nAixò donarà accés al nou correu i el traurà de l'antic.`)) return;
+
+      const btn = document.querySelector(`.gcal-worker-row[data-worker="${workerName}"] .icon-btn`);
+      const originalText = btn ? btn.textContent : '💾';
+      if (btn) btn.textContent = '⏳';
+
+      try {
+        const { data, error } = await supabaseClient.functions.invoke('sync-google-calendar', {
+          body: {
+            mode: 'update_email',
+            worker_name: workerName,
+            worker_email: email
+          }
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Error desconegut');
+
+        alert('✅ Email actualitzat correctament!');
+        renderGcalWorkerList(); // Refrescar estat
+
+      } catch (error) {
+        console.error('Error update email:', error);
+        alert(`❌ Error: ${error.message}`);
+      } finally {
+        if (btn) btn.textContent = originalText;
+      }
     }
 
     async function setupWorkerCalendar(workerName) {
