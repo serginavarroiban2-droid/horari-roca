@@ -96,31 +96,175 @@ serve(async (req) => {
 async function syncShiftsForWorker(supabase: any, accessToken: string, workerName: string, calendarId: string) {
   const today = new Date();
   const twoWeeks = new Date(today);
-  twoWeeks.setDate(today.getDate() + 14);
+  twoWeeks.setDate(today.getDate() + 45); // Sincronitzem 45 dies per seguretat
 
-  const { data: shifts } = await supabase.from("shifts").select("*")
+  const startDateStr = today.toISOString().slice(0, 10);
+  const endDateStr = twoWeeks.toISOString().slice(0, 10);
+
+  // 1. Obtenir Shifts de Supabase
+  const { data: shifts, error: shiftError } = await supabase.from("shifts").select("*")
     .eq("worker_name", workerName)
-    .gte("date", today.toISOString().slice(0, 10))
-    .lte("date", twoWeeks.toISOString().slice(0, 10));
+    .gte("date", startDateStr)
+    .lte("date", endDateStr);
 
+  if (shiftError) throw shiftError;
+
+  // 2. Obtenir Events existents a Google Calendar per evitar duplicats
+  // Convertim range a ISO amb timeZone si cal, però Google accepta 'Z'
+  const timeMin = new Date(startDateStr).toISOString();
+  // +1 dia per cobrir tot l'últim dia
+  const timeMax = new Date(twoWeeks.getTime() + 86400000).toISOString();
+
+  const googleEvents = await listEvents(accessToken, calendarId, timeMin, timeMax);
+
+  // 3. Processar Shifts
   for (const shift of shifts || []) {
-    // Check if event already exists (simplification: simple post for now, realistically should check)
-    // For this version we blindly create events. In a real world we would track event IDs.
-    // To avoid duplicates on re-sync, ideally we should query existing events or store event IDs.
-    // Given the previous code didn't check either, we'll stick to the simple logic but maybe add a check?
-    // Let's stick to the previous simple logic for minimal changes, but the user expects immediate results.
+    const shiftStartISO = `${shift.date}T${shift.start_time}`; // Prefix esperat ex: 2026-02-06T08:00:00
+    // Nota: Google pot retornar '2026-02-06T08:00:00+01:00'. Comparem l'inici.
 
-    await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        summary: "Torn",
-        description: shift.note || "",
-        start: { dateTime: `${shift.date}T${shift.start_time}`, timeZone: "Europe/Madrid" },
-        end: { dateTime: `${shift.date}T${shift.end_time}`, timeZone: "Europe/Madrid" },
-      }),
+    // Buscar events coincidents (mateix start time)
+    const matches = googleEvents.filter((ev: any) =>
+      ev.start.dateTime && ev.start.dateTime.startsWith(shiftStartISO)
+    );
+
+    let eventId = null;
+
+    if (matches.length === 0) {
+      // CREATE
+      const newEvent = await createEvent(accessToken, calendarId, shift);
+      eventId = newEvent.id;
+    } else {
+      // UPDATE el primer
+      const first = matches[0];
+      eventId = first.id;
+      // Actualitzem per si ha canviat la nota o l'hora final
+      await patchEvent(accessToken, calendarId, eventId, shift);
+
+      // DELETE duplicats (El problema que reporta l'usuari)
+      if (matches.length > 1) {
+        for (let i = 1; i < matches.length; i++) {
+          await deleteEvent(accessToken, calendarId, matches[i].id);
+        }
+      }
+    }
+
+    // Actualitzar taula de mapping (opcional però recomanable)
+    if (eventId) {
+      // Mirem si existeix per index (shift_date, worker_name, start_time, end_time)
+      const { data: existing } = await supabase.from("calendar_events_sync")
+        .select("id")
+        .eq("shift_date", shift.date)
+        .eq("worker_name", shift.worker_name)
+        .eq("start_time", shift.start_time)
+        .eq("end_time", shift.end_time)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from("calendar_events_sync").update({
+          google_event_id: eventId,
+          last_synced: new Date().toISOString(),
+          sync_action: matches.length === 0 ? 'create' : 'update'
+        }).eq("id", existing.id);
+      } else {
+        await supabase.from("calendar_events_sync").insert({
+          shift_date: shift.date,
+          worker_name: shift.worker_name,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          lane: shift.lane,
+          google_event_id: eventId,
+          calendar_id: calendarId,
+          last_synced: new Date().toISOString(),
+          sync_action: matches.length === 0 ? 'create' : 'update'
+        });
+      }
+    }
+
+    // Treure els processats de la llista googleEvents per identificar 'orfes'
+    matches.forEach((m: any) => {
+      const idx = googleEvents.indexOf(m);
+      if (idx > -1) googleEvents.splice(idx, 1);
     });
   }
+
+  // 4. Netejar Orfes (Events a Google que no tenen shift corresponent a BD)
+  // Això resol el cas "He esborrat el shift a l'app però segueix al calendari"
+  // Només esborrem events que semblin torns (per seguretat, tot i que el calendari és dedicat)
+  for (const ev of googleEvents) {
+    if (ev.summary === "Torn" || (ev.summary && ev.summary.startsWith("Torn"))) {
+      await deleteEvent(accessToken, calendarId, ev.id);
+    }
+  }
+}
+
+// Helpers Google API
+async function listEvents(accessToken: string, calendarId: string, timeMin: string, timeMax: string) {
+  const params = new URLSearchParams({
+    timeMin: timeMin,
+    timeMax: timeMax,
+    singleEvents: "true",
+    orderBy: "startTime", // Ensure correct order if useful, but optional
+    maxResults: "2500" // Suficient per 45 dies
+  });
+
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    console.error("Error listing events:", await res.text());
+    return [];
+  }
+  const data = await res.json();
+  return data.items || [];
+}
+
+async function createEvent(accessToken: string, calendarId: string, shift: any) {
+  let endDate = shift.date;
+  if (shift.end_time < shift.start_time) {
+    const d = new Date(shift.date);
+    d.setDate(d.getDate() + 1);
+    endDate = d.toISOString().split('T')[0];
+  }
+
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      summary: "Torn",
+      description: shift.note || "",
+      start: { dateTime: `${shift.date}T${shift.start_time}`, timeZone: "Europe/Madrid" },
+      end: { dateTime: `${endDate}T${shift.end_time}`, timeZone: "Europe/Madrid" },
+    }),
+  });
+  if (!res.ok) throw new Error("Error creating event: " + await res.text());
+  return await res.json();
+}
+
+async function patchEvent(accessToken: string, calendarId: string, eventId: string, shift: any) {
+  let endDate = shift.date;
+  if (shift.end_time < shift.start_time) {
+    const d = new Date(shift.date);
+    d.setDate(d.getDate() + 1);
+    endDate = d.toISOString().split('T')[0];
+  }
+
+  await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      description: shift.note || "",
+      start: { dateTime: `${shift.date}T${shift.start_time}`, timeZone: "Europe/Madrid" },
+      end: { dateTime: `${endDate}T${shift.end_time}`, timeZone: "Europe/Madrid" },
+    }),
+  });
+}
+
+async function deleteEvent(accessToken: string, calendarId: string, eventId: string) {
+  await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
 }
 
 async function getAccessToken(creds: any, impersonateEmail?: string): Promise<string> {
