@@ -2460,38 +2460,72 @@
       return data || [];
     }
 
+    let isSaving = false;
+    let pendingSave = false;
+
     async function saveShiftsToSupabase() {
       if (!currentUser || !currentWeekStart || !canEdit()) return;
+
+      // Gestió de concurrència: Si ja està guardant, marquem per guardar després
+      if (isSaving) {
+        pendingSave = true;
+        return;
+      }
+
+      isSaving = true;
+      pendingSave = false; // Netegem bandera ja que anem a processar l'estat actual
       updateSaveIndicator('saving');
+
+      // Helper per timeout
+      const timeoutPromise = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('Temps d\'espera esgotat (Timeout)')), ms));
 
       try {
         const weekEnd = new Date(parseISODate(currentWeekStart));
         weekEnd.setDate(weekEnd.getDate() + 6);
 
-        await supabaseClient.from('shifts').delete().gte('date', currentWeekStart).lte('date', formatISO(weekEnd));
+        // Operacions de BD amb Timeout de 15s per evitar penjaments
+        await Promise.race([
+          (async () => {
+            // 1. Esborrar
+            const { error: delError } = await supabaseClient.from('shifts').delete().gte('date', currentWeekStart).lte('date', formatISO(weekEnd));
+            if (delError) throw delError;
 
-        if (shifts.length > 0) {
-          const shiftsToInsert = shifts.map(s => {
-            const shiftDate = new Date(parseISODate(currentWeekStart));
-            shiftDate.setDate(shiftDate.getDate() + s.dayIndex);
-            return {
-              worker_name: s.worker,
-              date: formatISO(shiftDate),
-              start_time: slotToTime(s.startSlot),
-              end_time: slotToTime(s.endSlot),
-              note: s.note || '',
-              lane: s.laneIndex
-            };
-          });
-          await supabaseClient.from('shifts').insert(shiftsToInsert);
-        }
+            // 2. Inserir
+            if (shifts.length > 0) {
+              const shiftsToInsert = shifts.map(s => {
+                const shiftDate = new Date(parseISODate(currentWeekStart));
+                shiftDate.setDate(shiftDate.getDate() + s.dayIndex);
+                return {
+                  worker_name: s.worker,
+                  date: formatISO(shiftDate),
+                  start_time: slotToTime(s.startSlot),
+                  end_time: slotToTime(s.endSlot),
+                  note: s.note || '',
+                  lane: s.laneIndex
+                };
+              });
+              const { error: insError } = await supabaseClient.from('shifts').insert(shiftsToInsert);
+              if (insError) throw insError;
+            }
+          })(),
+          timeoutPromise(15000)
+        ]);
 
         // Auto-synchronize with Google Calendar (background)
         triggerBackgroundSync();
 
         updateSaveIndicator('saved');
+
       } catch (error) {
+        console.error('Error guardant:', error);
         updateSaveIndicator('error');
+        // Opcional: Podríem fer un retry automàtic, però millor avisar l'usuari
+      } finally {
+        isSaving = false;
+        // Si hi ha hagut canvis MENTRE guardàvem, tornem a guardar immediatament
+        if (pendingSave) {
+          saveShiftsToSupabase();
+        }
       }
     }
 
