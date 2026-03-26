@@ -14,7 +14,7 @@
   <meta name="msapplication-TileColor" content="#1f2937">
   <link rel="manifest" href="manifest.json">
   <title>HORARI ROCA · Planner</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -1510,6 +1510,165 @@
         display: none !important;
       }
     }
+    /* Modal Gestió de Treballadors */
+    .worker-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+    }
+
+    .worker-modal-overlay.hidden { display: none !important; }
+
+    .worker-modal {
+      background: white;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 16px;
+      padding: 0;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .worker-modal h2 {
+      margin: 0;
+      padding: 16px 20px;
+      background: #1f2937;
+      color: white;
+      font-size: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .worker-modal h2 .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .worker-modal-content {
+      padding: 20px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .worker-form {
+      background: #f9fafb;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 20px;
+    }
+
+    .worker-form h3 {
+      font-size: 14px;
+      margin: 0 0 12px;
+      color: #374151;
+    }
+
+    .worker-form .input-group {
+      margin-bottom: 12px;
+    }
+
+    .worker-form label {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .worker-form input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .color-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .color-option {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+
+    .color-option.selected {
+      border-color: #111827;
+      transform: scale(1.1);
+    }
+
+    .btn-add-worker {
+      width: 100%;
+      padding: 10px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    .worker-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .worker-list-item:last-child {
+      border-bottom: none;
+    }
+
+    .worker-list-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .worker-list-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+
+    .btn-delete-worker {
+      background: #fee2e2;
+      color: #dc2626;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .btn-manage-workers {
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #374151;
+    }
+
+    .btn-manage-workers.hidden { display: none !important; }
   </style>
 </head>
 
@@ -1563,7 +1722,10 @@
 
     <div class="app">
       <div class="left" id="leftPanel">
-        <h2>Treballadors</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h2 style="margin: 0;">Treballadors</h2>
+          <button id="manageWorkersBtn" class="btn-manage-workers hidden" onclick="openWorkerModal()" title="Gestionar treballadors">⚙️</button>
+        </div>
         <p class="workers-info" id="workersInfo">Arrossega per crear torns.</p>
         <div id="workers"></div>
         <div id="summary">
@@ -1650,6 +1812,39 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Gestió de Treballadors -->
+    <div class="worker-modal-overlay hidden" id="workerModal" onclick="if(event.target === this) closeWorkerModal();">
+      <div class="worker-modal" onclick="event.stopPropagation();">
+        <h2>
+          ⚙️ Gestionar Treballadors
+          <button class="close-btn" onclick="closeWorkerModal()">×</button>
+        </h2>
+        <div class="worker-modal-content">
+          <div class="worker-form">
+            <h3>Afegir nou treballador</h3>
+            <div class="input-group">
+              <label>Nom</label>
+              <input type="text" id="newWorkerName" placeholder="Ex: Sergi">
+            </div>
+            <div class="input-group">
+              <label>Email de Google (opcional)</label>
+              <input type="email" id="newWorkerEmail" placeholder="treballador@gmail.com">
+            </div>
+            <div class="input-group">
+              <label>Color</label>
+              <div class="color-picker" id="newWorkerColorPicker"></div>
+            </div>
+            <button class="btn-add-worker" onclick="handleAddWorker()">Afegir Treballador</button>
+          </div>
+
+          <div id="workerListContainer">
+            <h3>Llista de Treballadors</h3>
+            <div id="workerManagementList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1707,6 +1902,8 @@
     // ========== INICIALITZACIÓ ==========
     document.addEventListener('DOMContentLoaded', async () => {
       try {
+        console.log('Esperant estabilitat...');
+        await new Promise(r => setTimeout(r, 500));
         console.log('Inicialitzant app...');
 
         if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
@@ -1715,16 +1912,40 @@
           return;
         }
 
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const { data: { session } } = await supabaseClient.auth.getSession();
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        });
+
+        console.log('Obtenint sessió...');
+        let sessionResponse;
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            sessionResponse = await supabaseClient.auth.getSession();
+            break;
+          } catch (err) {
+            console.warn(`Intent fallit (${4 - retries}/3)...`, err);
+            retries--;
+            if (retries === 0) throw err;
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        const session = sessionResponse.data?.session;
 
         if (session) {
+          console.log('Sessió trobada, carregant perfil...');
           currentUser = session.user;
           await loadUserProfile();
           showMainApp();
         } else {
+          console.log('No hi ha sessió, mostrant login.');
           showLoginScreen();
         }
+
 
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
           console.log('Auth state changed:', event);
@@ -1740,7 +1961,11 @@
       } catch (error) {
         console.error('Error inicialització:', error);
         document.getElementById('loadingOverlay').classList.add('hidden');
-        alert('Error: ' + error.message);
+
+        if (confirm('Error de connexió: ' + error.message + '\n\nVols intentar netejar la memòria del navegador per solucionar-ho?')) {
+          localStorage.clear();
+          location.reload();
+        }
       }
     });
 
@@ -1778,6 +2003,7 @@
         bottomBar.classList.remove('hidden');
         leftPanel.classList.remove('hidden');
         showGcalButton(); // Mostrar botó Google Calendar
+        document.getElementById('manageWorkersBtn').classList.remove('hidden');
       } else if (currentUserRole === 'encarregat') {
         holidayControls.classList.add('hidden');
         bottomBar.classList.add('hidden');
@@ -1791,6 +2017,119 @@
       const roleEl = document.getElementById('userRole');
       roleEl.textContent = currentUserRole;
       roleEl.className = 'user-role ' + currentUserRole;
+    }
+
+    // ========== GESTIÓ DE TREBALLADORS (ADMIN) ==========
+    let selectedAddWorkerColor = '#3b82f6';
+    const WORKER_PALETTE = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#4b5563', '#111827', '#7c3aed'];
+
+    function openWorkerModal() {
+      if (!canEdit()) return;
+      document.getElementById('workerModal').classList.remove('hidden');
+      renderColorPicker();
+      renderWorkerManagementList();
+    }
+
+    function closeWorkerModal() {
+      document.getElementById('workerModal').classList.add('hidden');
+    }
+
+    function renderColorPicker() {
+      const cont = document.getElementById('newWorkerColorPicker');
+      cont.innerHTML = '';
+      WORKER_PALETTE.forEach(color => {
+        const opt = document.createElement('div');
+        opt.className = 'color-option' + (selectedAddWorkerColor === color ? ' selected' : '');
+        opt.style.backgroundColor = color;
+        opt.onclick = () => {
+          selectedAddWorkerColor = color;
+          renderColorPicker();
+        };
+        cont.appendChild(opt);
+      });
+    }
+
+    async function handleAddWorker() {
+      const nameInput = document.getElementById('newWorkerName');
+      const emailInput = document.getElementById('newWorkerEmail');
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+
+      if (!name) { alert('El nom és obligatori'); return; }
+
+      setStatus('Afegint treballador...', false);
+      try {
+        const { error: wError } = await supabaseClient.from('workers').insert([{ name, color: selectedAddWorkerColor }]);
+        if (wError) throw wError;
+
+        if (email) {
+          const { error: cError } = await supabaseClient.from('worker_calendars').insert([{ worker_name: name, worker_email: email }]);
+          if (cError) throw cError;
+        }
+
+        nameInput.value = '';
+        emailInput.value = '';
+        alert('Treballador afegit correctament');
+        
+        workers = await loadWorkersFromSupabase();
+        renderWorkers();
+        renderWorkerManagementList();
+        setStatus('Treballador afegit', false);
+      } catch (error) {
+        console.error('Error afegint treballador:', error);
+        alert('Error: ' + error.message);
+        setStatus('Error afegint', true);
+      }
+    }
+
+    async function handleDeleteWorker(name) {
+      if (!confirm(`Estàs segur que vols eliminar a ${name}? Això NO esborrarà els seus torns però sí la seva configuració.`)) return;
+
+      setStatus('Eliminant...', false);
+      try {
+        const { error } = await supabaseClient.from('workers').delete().eq('name', name);
+        if (error) throw error;
+        
+        await supabaseClient.from('worker_calendars').delete().eq('worker_name', name);
+
+        workers = await loadWorkersFromSupabase();
+        renderWorkers();
+        renderWorkerManagementList();
+        setStatus('Treballador eliminat', false);
+      } catch (error) {
+        console.error('Error eliminant:', error);
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function renderWorkerManagementList() {
+      const cont = document.getElementById('workerManagementList');
+      cont.innerHTML = 'Carregant...';
+      
+      const { data: wData, error: wError } = await supabaseClient.from('workers').select('*').order('name');
+      if (wError) { cont.innerHTML = 'Error carregant treballadors'; return; }
+
+      cont.innerHTML = '';
+      if (wData.length === 0) { cont.innerHTML = '<p style="font-size:12px;color:gray;">No hi ha treballadors.</p>'; return; }
+
+      wData.forEach(w => {
+        const item = document.createElement('div');
+        item.className = 'worker-list-item';
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        item.style.padding = '8px 0';
+        item.style.borderBottom = '1px solid #eee';
+        
+        item.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:12px;height:12px;border-radius:50%;background-color:${w.color}"></div>
+            <span style="font-weight:500;">${w.name}</span>
+          </div>
+          <button class="btn-delete-worker" onclick="handleDeleteWorker('${w.name}')">Eliminar</button>
+        `;
+        cont.appendChild(item);
+      });
     }
 
     // ========== AUTH ==========

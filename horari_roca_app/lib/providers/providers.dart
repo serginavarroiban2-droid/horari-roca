@@ -53,15 +53,47 @@ final currentWeekProvider = NotifierProvider<CurrentWeekNotifier, DateTime>(
   CurrentWeekNotifier.new,
 );
 
-// Provider per als treballadors
-final workersProvider = FutureProvider<List<Worker>>((ref) async {
-  final response = await Supabase.instance.client
-      .from('workers')
-      .select()
-      .order('name');
-  
-  return (response as List).map((w) => Worker.fromJson(w)).toList();
-});
+// Notifier per a la gestió de treballadors
+class WorkersNotifier extends AsyncNotifier<List<Worker>> {
+  @override
+  Future<List<Worker>> build() async {
+    final response = await Supabase.instance.client
+        .from('workers')
+        .select()
+        .order('name');
+    
+    return (response as List).map((w) => Worker.fromJson(w)).toList();
+  }
+
+  Future<void> addWorker(String name, Color color, String? email) async {
+    final worker = Worker(name: name, color: color);
+    
+    // Inserir a la taula workers
+    await Supabase.instance.client.from('workers').insert(worker.toJson());
+    
+    // Inserir a worker_calendars si hi ha email
+    if (email != null && email.isNotEmpty) {
+      await Supabase.instance.client.from('worker_calendars').insert({
+        'worker_name': name,
+        'worker_email': email,
+      });
+    }
+    
+    ref.invalidateSelf();
+  }
+
+  Future<void> deleteWorker(String name) async {
+    // Eliminar de ambdues taules (la FK s'encarregaria si estigués definida, però seguim el model actual)
+    await Supabase.instance.client.from('worker_calendars').delete().eq('worker_name', name);
+    await Supabase.instance.client.from('workers').delete().eq('name', name);
+    
+    ref.invalidateSelf();
+  }
+}
+
+final workersProvider = AsyncNotifierProvider<WorkersNotifier, List<Worker>>(
+  WorkersNotifier.new,
+);
 
 // Provider per als torns de la setmana
 final shiftsProvider = FutureProvider.family<List<Shift>, DateTime>((ref, weekStart) async {
@@ -121,6 +153,15 @@ class SavingStateNotifier extends Notifier<SavingState> {
 final savingStateProvider = NotifierProvider<SavingStateNotifier, SavingState>(
   SavingStateNotifier.new,
 );
+
+// Provider per als festius
+final holidaysProvider = FutureProvider<List<String>>((ref) async {
+  final response = await Supabase.instance.client
+      .from('holidays')
+      .select('date');
+  
+  return (response as List).map((h) => h['date'] as String).toList();
+});
 
 // Helper per formatar dates
 String _formatDate(DateTime date) {

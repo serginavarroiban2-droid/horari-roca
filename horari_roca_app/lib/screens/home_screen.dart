@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../providers/providers.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
-import 'shift_detail_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -19,23 +18,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-    final userRole = ref.watch(userRoleProvider);
-    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Horari Roca'),
+        title: const Text('Horari Roca v3'),
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
               ref.invalidate(shiftsProvider);
+              ref.invalidate(holidaysProvider);
               ref.invalidate(workersProvider);
             },
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => _showLogoutDialog(context),
+            onPressed: () => Supabase.instance.client.auth.signOut(),
           ),
         ],
       ),
@@ -51,690 +49,692 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.calendar_view_week_outlined),
-            selectedIcon: Icon(Icons.calendar_view_week),
-            label: 'Setmana',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Els Meus',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Ajustos',
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tancar sessió'),
-        content: const Text('Segur que vols sortir?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel·lar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Sortir'),
-          ),
+          NavigationDestination(icon: Icon(Icons.calendar_view_week), label: 'Setmana'),
+          NavigationDestination(icon: Icon(Icons.person), label: 'Els Meus'),
+          NavigationDestination(icon: Icon(Icons.settings), label: 'Ajustos'),
         ],
       ),
     );
   }
 }
 
-// Vista del calendari setmanal
 class WeeklyCalendarView extends ConsumerWidget {
   const WeeklyCalendarView({super.key});
+
+  static const double hourHeight = 85.0;
+  static const double dayWidth = 160.0;
+  static const int startHour = 7;
+  static const int endHour = 22;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final weekStart = ref.watch(currentWeekProvider);
     final shiftsAsync = ref.watch(shiftsProvider(weekStart));
+    final holidaysAsync = ref.watch(holidaysProvider);
+    final workersAsync = ref.watch(workersProvider);
     
     return Column(
       children: [
-        // Navegació setmana
         _WeekNavigator(weekStart: weekStart),
-        
-        // Capçalera dies
-        _DaysHeader(weekStart: weekStart),
-        
-        // Llista de torns
         Expanded(
           child: shiftsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error: $e')),
-            data: (shifts) => _ShiftsList(shifts: shifts, weekStart: weekStart),
+            data: (shifts) => holidaysAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => const Center(child: Text('Error Festius')),
+              data: (holidays) => _WeeklyTimelineGrid(
+                shifts: shifts,
+                holidays: holidays,
+                weekStart: weekStart,
+                hourHeight: hourHeight,
+                dayWidth: dayWidth,
+                startHour: startHour,
+                endHour: endHour,
+              ),
+            ),
+          ),
+        ),
+        // BOTONERA DE TREBALLADORS
+        Container(
+          height: 85,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -2))],
+          ),
+          child: workersAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const Text('Error'),
+            data: (workers) => ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              itemCount: workers.length,
+              itemBuilder: (context, i) => _DraggableWorker(worker: workers[i]),
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _WeeklyTimelineGrid extends ConsumerWidget {
+  final List<Shift> shifts;
+  final List<String> holidays;
+  final DateTime weekStart;
+  final double hourHeight;
+  final double dayWidth;
+  final int startHour;
+  final int endHour;
+
+  const _WeeklyTimelineGrid({
+    required this.shifts,
+    required this.holidays,
+    required this.weekStart,
+    required this.hourHeight,
+    required this.dayWidth,
+    required this.startHour,
+    required this.endHour,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final double gridHeight = (endHour - startHour + 1) * hourHeight;
+    final double gridWidth = dayWidth * 7;
+    const double labelsWidth = 55.0;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // INDICADORS D'HORES
+          Column(
+            children: [
+              const SizedBox(height: 70), // Mateixa alçada que la capçalera
+              ...List.generate(endHour - startHour + 1, (i) => Container(
+                height: hourHeight,
+                width: labelsWidth,
+                alignment: Alignment.topCenter,
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('${i + startHour}:00', style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
+              )),
+            ],
+          ),
+          // GRAELLA
+          Column(
+            children: [
+              // CAPÇALERA DIES
+              Row(
+                children: List.generate(7, (i) {
+                  final date = weekStart.add(Duration(days: i));
+                  final isHoliday = holidays.contains(DateFormat('yyyy-MM-dd').format(date));
+                  return _DayHeaderCell(date: date, width: dayWidth, isHoliday: isHoliday);
+                }),
+              ),
+              // ÀREA INTERACTIVA
+              Expanded(
+                child: SingleChildScrollView(
+                  child: DragTarget<Worker>(
+                    onAcceptWithDetails: (details) => _createNewShift(details, context, ref),
+                    builder: (context, candidateData, rejectedData) => Stack(
+                      children: [
+                        _GridBackground(
+                          width: gridWidth,
+                          height: gridHeight,
+                          dayWidth: dayWidth,
+                          hourHeight: hourHeight,
+                          startHour: startHour,
+                          endHour: endHour,
+                        ),
+                        // LÍNIA 15:00
+                        Positioned(
+                          top: (15 - startHour) * hourHeight,
+                          child: Container(width: gridWidth, height: 2, color: Colors.red.withOpacity(0.3)),
+                        ),
+                        ...shifts.map((s) => _InteractiveShiftBlock(
+                          shift: s,
+                          weekStart: weekStart,
+                          dayWidth: dayWidth,
+                          hourHeight: hourHeight,
+                          startHour: startHour,
+                        )),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _createNewShift(DragTargetDetails<Worker> details, BuildContext context, WidgetRef ref) async {
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final localOffset = box.globalToLocal(details.offset);
+    
+    // CORRECCIÓ DE COORDENADES
+    const double labelsWidth = 55.0;
+    const double headerHeight = 70.0;
+    
+    final adjustedDx = localOffset.dx - labelsWidth;
+    final adjustedDy = localOffset.dy - headerHeight;
+    
+    if (adjustedDx < 0 || adjustedDy < 0) return;
+
+    final dayIndex = (adjustedDx / dayWidth).floor();
+    final hourOffset = (adjustedDy / hourHeight);
+    final totalHours = startHour + hourOffset;
+    
+    final startH = totalHours.floor();
+    final startM = ((totalHours - startH) * 60 / 30).round() * 30;
+    
+    final finalStartH = startM >= 60 ? startH + 1 : startH;
+    final finalStartM = startM >= 60 ? 0 : startM;
+
+    final date = weekStart.add(Duration(days: dayIndex));
+    final startTime = '${finalStartH.toString().padLeft(2,'0')}:${finalStartM.toString().padLeft(2,'0')}:00';
+    final endTime = '${(finalStartH + 2).toString().padLeft(2,'0')}:${finalStartM.toString().padLeft(2,'0')}:00';
+
+    final newShift = Shift(
+      workerName: details.data.name,
+      date: DateFormat('yyyy-MM-dd').format(date),
+      startTime: startTime,
+      endTime: endTime,
+      lane: (adjustedDx % dayWidth / (dayWidth / 5)).floor(), // Calcular carril segons posició horitzontal interna del dia
+    );
+
+    try {
+      await Supabase.instance.client.from('shifts').insert(newShift.toJson());
+      ref.invalidate(shiftsProvider);
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Torn creat!'), duration: Duration(seconds: 1)));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+}
+
+class _InteractiveShiftBlock extends ConsumerWidget {
+  final Shift shift;
+  final DateTime weekStart;
+  final double dayWidth;
+  final double hourHeight;
+  final int startHour;
+
+  const _InteractiveShiftBlock({
+    required this.shift,
+    required this.weekStart,
+    required this.dayWidth,
+    required this.hourHeight,
+    required this.startHour,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final date = DateTime.tryParse(shift.date) ?? DateTime.now();
+    final dayOffset = date.difference(weekStart).inDays;
+    if (dayOffset < 0 || dayOffset > 6) return const SizedBox.shrink();
+
+    final startParts = shift.startTime.split(':');
+    final endParts = shift.endTime.split(':');
+    final startH = int.parse(startParts[0]);
+    final startM = int.parse(startParts[1]);
+    final endH = int.parse(endParts[0]);
+    final endM = int.parse(endParts[1]);
+
+    final double top = ((startH - startHour) * hourHeight) + (startM / 60 * hourHeight);
+    final double durationHrs = (endH - startH) + ((endM - startM) / 60);
+    final double height = durationHrs * hourHeight;
+    final double laneWidth = (dayWidth - 10) / 5;
+    final double left = (dayOffset * dayWidth) + (shift.lane % 5 * laneWidth) + 5;
+
+    final color = AppTheme.workerColors[shift.workerName.hashCode % AppTheme.workerColors.length];
+
+    return Positioned(
+      top: top,
+      left: left,
+      width: laneWidth - 2,
+      height: height,
+      child: GestureDetector(
+        onLongPress: () => _confirmDelete(context, ref),
+        child: Container(
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white, width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3, offset: const Offset(0, 1))],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Center(child: Text(shift.workerName.substring(0,1).toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
+              
+              // NANSA SUPERIOR (MÉS GRAN)
+              Positioned(
+                top: -10, left: 0, right: 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: (d) => _handleResize(d, ref, context, isBottom: false),
+                  child: Container(
+                    height: 30,
+                    alignment: Alignment.center,
+                    child: Container(width: 20, height: 4, decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(2))),
+                  ),
+                ),
+              ),
+              
+              // NANSA INFERIOR (MÉS GRAN)
+              Positioned(
+                bottom: -10, left: 0, right: 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: (d) => _handleResize(d, ref, context, isBottom: true),
+                  child: Container(
+                    height: 30,
+                    alignment: Alignment.center,
+                    child: Container(width: 20, height: 4, decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(2))),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleResize(DragUpdateDetails d, WidgetRef ref, BuildContext context, {required bool isBottom}) async {
+    final pixelsPerHalfHour = hourHeight / 2;
+    if (d.delta.dy.abs() < 5) return; // Filtre per evitar salts massa petits
+
+    final startParts = shift.startTime.split(':');
+    final endParts = shift.endTime.split(':');
+    int startH = int.parse(startParts[0]);
+    int startM = int.parse(startParts[1]);
+    int endH = int.parse(endParts[0]);
+    int endM = int.parse(endParts[1]);
+
+    final double deltaMins = (d.delta.dy / hourHeight) * 60;
+    
+    if (isBottom) {
+      endM += deltaMins.round();
+      // Snap a 15 minuts per facilitar l'edició
+      endM = (endM / 15).round() * 15;
+      while (endM >= 60) { endM -= 60; endH += 1; }
+      while (endM < 0) { endM += 60; endH -= 1; }
+    } else {
+      startM += deltaMins.round();
+      startM = (startM / 15).round() * 15;
+      while (startM >= 60) { startM -= 60; startH += 1; }
+      while (startM < 0) { startM += 60; startH -= 1; }
+    }
+
+    if (endH < startH || (endH == startH && endM <= startM)) return;
+    if (startH < 7 || endH > 23) return;
+
+    final newStart = '${startH.toString().padLeft(2,'0')}:${startM.toString().padLeft(2,'0')}:00';
+    final newEnd = '${endH.toString().padLeft(2,'0')}:${endM.toString().padLeft(2,'0')}:00';
+
+    if (newStart == shift.startTime && newEnd == shift.endTime) return;
+
+    try {
+      await Supabase.instance.client.from('shifts').update({
+        'start_time': newStart,
+        'end_time': newEnd,
+      }).eq('id', shift.id);
+      ref.invalidate(shiftsProvider);
+    } catch (e) {
+      // Ignorem errors visuals durant el drag
+    }
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref) {
+    showDialog(context: context, builder: (context) => AlertDialog(
+      title: const Text('Esborrar torn?'),
+      content: Text('Vols eliminar el torn de ${shift.workerName}?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel·lar')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            await Supabase.instance.client.from('shifts').delete().eq('id', shift.id);
+            ref.invalidate(shiftsProvider);
+            if (context.mounted) {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Torn eliminat')));
+            }
+          }, 
+          child: const Text('Eliminar', style: TextStyle(color: Colors.white))
+        ),
+      ],
+    ));
+  }
+}
+
+class _DraggableWorker extends StatelessWidget {
+  final Worker worker;
+  const _DraggableWorker({required this.worker});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppTheme.workerColors[worker.name.hashCode % AppTheme.workerColors.length];
+    return Draggable<Worker>(
+      data: worker,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 10)]),
+          child: Text(worker.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color, width: 2),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.2), blurRadius: 4)],
+        ),
+        child: Center(child: Text(worker.name, style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+      ),
+    );
+  }
+}
+
+class _GridBackground extends StatelessWidget {
+  final double width, height, dayWidth, hourHeight;
+  final int startHour, endHour;
+  const _GridBackground({required this.width, required this.height, required this.dayWidth, required this.hourHeight, required this.startHour, required this.endHour});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Column(children: List.generate(endHour - startHour + 1, (i) => Container(
+          height: hourHeight, width: width,
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.12)))),
+        ))),
+        Row(children: List.generate(7, (i) => Container(
+          width: dayWidth, height: height,
+          decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1.5))),
+        ))),
+      ],
+    );
+  }
+}
+
+class _DayHeaderCell extends StatelessWidget {
+  final DateTime date;
+  final double width;
+  final bool isHoliday;
+  const _DayHeaderCell({required this.date, required this.width, required this.isHoliday});
+
+  @override
+  Widget build(BuildContext context) {
+    final dayNames = ['Dll', 'Dmt', 'Dmc', 'Djs', 'Dvn', 'Dss', 'Dmg'];
+    final isToday = DateFormat('yyyy-MM-dd').format(date) == DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    return Container(
+      width: width, height: 70,
+      decoration: BoxDecoration(
+        color: isHoliday ? Colors.red.withOpacity(0.1) : (isToday ? AppTheme.primaryColor.withOpacity(0.08) : Colors.white),
+        border: Border(
+          bottom: BorderSide(color: isHoliday ? Colors.red : (isToday ? AppTheme.primaryColor : Colors.grey.shade300), width: 3),
+          left: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1.5),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(dayNames[date.weekday - 1], style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isHoliday ? Colors.red : Colors.grey.shade600)),
+          Text('${date.day}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isHoliday ? Colors.red : (isToday ? AppTheme.primaryColor : Colors.black87))),
+        ],
+      ),
     );
   }
 }
 
 class _WeekNavigator extends ConsumerWidget {
   final DateTime weekStart;
-  
   const _WeekNavigator({required this.weekStart});
-  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final weekEnd = weekStart.add(const Duration(days: 6));
     final dateFormat = DateFormat('d MMM', 'ca');
-    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: const BoxDecoration(color: Colors.white),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () {
-              ref.read(currentWeekProvider.notifier).previousWeek();
-            },
-          ),
-          GestureDetector(
-            onTap: () => _pickWeek(context, ref),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${dateFormat.format(weekStart)} - ${dateFormat.format(weekEnd)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () {
-              ref.read(currentWeekProvider.notifier).nextWeek();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Future<void> _pickWeek(BuildContext context, WidgetRef ref) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: weekStart,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      // Obtenir dilluns de la setmana seleccionada
-      final monday = picked.subtract(Duration(days: picked.weekday - 1));
-      ref.read(currentWeekProvider.notifier).setWeek(
-          DateTime(monday.year, monday.month, monday.day));
-    }
-  }
-}
-
-class _DaysHeader extends StatelessWidget {
-  final DateTime weekStart;
-  
-  const _DaysHeader({required this.weekStart});
-  
-  @override
-  Widget build(BuildContext context) {
-    final days = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'];
-    final today = DateTime.now();
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: List.generate(7, (index) {
-          final date = weekStart.add(Duration(days: index));
-          final isToday = date.year == today.year &&
-              date.month == today.month &&
-              date.day == today.day;
-          
-          return Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: isToday ? BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ) : null,
-              child: Column(
-                children: [
-                  Text(
-                    days[index],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isToday ? AppTheme.primaryColor : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: isToday ? const BoxDecoration(
-                      color: AppTheme.primaryColor,
-                      shape: BoxShape.circle,
-                    ) : null,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${date.day}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isToday ? Colors.white : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _ShiftsList extends StatelessWidget {
-  final List<Shift> shifts;
-  final DateTime weekStart;
-  
-  const _ShiftsList({required this.shifts, required this.weekStart});
-  
-  @override
-  Widget build(BuildContext context) {
-    if (shifts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_busy, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'No hi ha torns aquesta setmana',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    // Agrupar torns per dia
-    final Map<String, List<Shift>> shiftsByDay = {};
-    for (var shift in shifts) {
-      shiftsByDay.putIfAbsent(shift.date, () => []).add(shift);
-    }
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: 7,
-      itemBuilder: (context, dayIndex) {
-        final date = weekStart.add(Duration(days: dayIndex));
-        final dateStr = _formatDate(date);
-        final dayShifts = shiftsByDay[dateStr] ?? [];
-        
-        if (dayShifts.isEmpty) return const SizedBox.shrink();
-        
-        return _DayCard(
-          date: date,
-          shifts: dayShifts,
-        );
-      },
-    );
-  }
-  
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-}
-
-class _DayCard extends StatelessWidget {
-  final DateTime date;
-  final List<Shift> shifts;
-  
-  const _DayCard({required this.date, required this.shifts});
-  
-  @override
-  Widget build(BuildContext context) {
-    final dayNames = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'];
-    final dayName = dayNames[date.weekday - 1];
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header del dia
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  dayName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  DateFormat('d/M').format(date),
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Llista de torns
-          ...shifts.map((shift) => _ShiftTile(shift: shift)),
+          IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => ref.read(currentWeekProvider.notifier).previousWeek()),
+          Text('${dateFormat.format(weekStart)} - ${dateFormat.format(weekEnd)}'.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => ref.read(currentWeekProvider.notifier).nextWeek()),
         ],
       ),
     );
   }
 }
 
-class _ShiftTile extends StatelessWidget {
-  final Shift shift;
-  
-  const _ShiftTile({required this.shift});
-  
-  @override
-  Widget build(BuildContext context) {
-    final color = AppTheme.workerColors[
-        shift.workerName.hashCode % AppTheme.workerColors.length];
-    
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ShiftDetailScreen(shift: shift),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: color, width: 4),
-          ),
-        ),
-        child: Row(
-          children: [
-            // Indicador de color
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                shift.workerName.substring(0, 1).toUpperCase(),
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            
-            // Informació
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    shift.workerName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${shift.startTime.substring(0, 5)} - ${shift.endTime.substring(0, 5)}',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: shift.location == 'Roca' 
-                              ? Colors.blue.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          shift.location,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: shift.location == 'Roca' 
-                                ? Colors.blue.shade700
-                                : Colors.orange.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Duració
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${(shift.durationMinutes / 60).toStringAsFixed(1)}h',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                if (shift.note != null && shift.note!.isNotEmpty)
-                  const Icon(Icons.note, size: 16, color: Colors.grey),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Vista dels meus torns
 class MyShiftsView extends ConsumerWidget {
   const MyShiftsView({super.key});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    
-    // Obtenir el nom del treballador a partir de l'email o user metadata
-    final workerName = user?.userMetadata?['name'] ?? 
-                       user?.email?.split('@').first ?? 'Usuari';
-    
-    final shiftsAsync = ref.watch(workerShiftsProvider(workerName));
-    
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: AppTheme.primaryColor,
-                    child: Text(
-                      workerName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          workerName,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        Text(
-                          'Pròxims 14 dies',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Llista de torns
-          Expanded(
-            child: shiftsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (shifts) {
-                if (shifts.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.beach_access, 
-                            size: 64, color: Colors.grey.shade400),
-                        const SizedBox(height: 16),
-                        const Text('No tens torns programats!'),
-                      ],
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: shifts.length,
-                  itemBuilder: (context, index) {
-                    final shift = shifts[index];
-                    return _MyShiftCard(shift: shift);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) { return const Center(child: Text('Els meus torns')); }
 }
 
-class _MyShiftCard extends StatelessWidget {
-  final Shift shift;
-  
-  const _MyShiftCard({required this.shift});
-  
-  @override
-  Widget build(BuildContext context) {
-    final date = DateTime.parse(shift.date);
-    final now = DateTime.now();
-    final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
-    final isPast = date.isBefore(DateTime(now.year, now.month, now.day));
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: isToday ? AppTheme.primaryColor.withOpacity(0.1) : null,
-      child: ListTile(
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: isToday ? AppTheme.primaryColor : 
-                   isPast ? Colors.grey.shade300 : AppTheme.accentColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${date.day}',
-                style: TextStyle(
-                  color: isToday || !isPast ? Colors.white : Colors.grey.shade600,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              Text(
-                DateFormat('MMM').format(date).toUpperCase(),
-                style: TextStyle(
-                  color: isToday || !isPast ? Colors.white70 : Colors.grey.shade500,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        ),
-        title: Text(
-          '${shift.startTime.substring(0, 5)} - ${shift.endTime.substring(0, 5)}',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            decoration: isPast ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        subtitle: Text(shift.location),
-        trailing: Text(
-          '${(shift.durationMinutes / 60).toStringAsFixed(1)}h',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Vista d'ajustos
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
-    final isDarkMode = ref.watch(darkModeProvider);
-    
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Informació usuari
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppTheme.primaryColor,
-                  child: const Icon(Icons.person, size: 40, color: Colors.white),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  user?.email ?? 'Usuari',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ],
+    final userRoleAsync = ref.watch(userRoleProvider);
+    final workersAsync = ref.watch(workersProvider);
+    final isDark = ref.watch(darkModeProvider);
+
+    return Scaffold(
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Preferències', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Card(
+            child: SwitchListTile(
+              title: const Text('Mode Fosc'),
+              secondary: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+              value: isDark,
+              onChanged: (val) => ref.read(darkModeProvider.notifier).set(val),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        
-        // Opcions
-        Card(
-          child: Column(
-            children: [
-              SwitchListTile(
-                secondary: const Icon(Icons.dark_mode),
-                title: const Text('Mode fosc'),
-                value: isDarkMode,
-                onChanged: (value) {
-                  ref.read(darkModeProvider.notifier).set(value);
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.sync),
-                title: const Text('Sincronitzar ara'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  ref.invalidate(shiftsProvider);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sincronitzant...')),
-                  );
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('Versió'),
-                trailing: const Text('1.0.0'),
-              ),
-            ],
+          const SizedBox(height: 24),
+          
+          // GESTIÓ DE TREBALLADORS (NOMÉS ADMINS)
+          userRoleAsync.when(
+            data: (role) {
+              if (role?.isAdmin != true) return const SizedBox.shrink();
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Gestió de Treballadors', style: Theme.of(context).textTheme.titleLarge),
+                      IconButton.filled(
+                        onPressed: () => _showAddWorkerDialog(context, ref),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  workersAsync.when(
+                    data: (workers) => ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: workers.length,
+                      itemBuilder: (context, i) {
+                        final w = workers[i];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(backgroundColor: w.color),
+                            title: Text(w.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _confirmDeleteWorker(context, ref, w.name),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Text('Error carregant treballadors: $e'),
+                  ),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
-        ),
-        const SizedBox(height: 24),
-        
-        // Peu
-        Center(
-          child: Text(
-            'Horari Roca © ${DateTime.now().year}',
-            style: Theme.of(context).textTheme.bodyMedium,
+        ],
+      ),
+    );
+  }
+
+  void _showAddWorkerDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => const _AddWorkerDialog(),
+    );
+  }
+
+  void _confirmDeleteWorker(BuildContext context, WidgetRef ref, String name) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar treballador?'),
+        content: Text('Vols eliminar a $name? Això també eliminarà la seva configuració de calendari.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel·lar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              await ref.read(workersProvider.notifier).deleteWorker(name);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddWorkerDialog extends ConsumerStatefulWidget {
+  const _AddWorkerDialog();
+
+  @override
+  ConsumerState<_AddWorkerDialog> createState() => _AddWorkerDialogState();
+}
+
+class _AddWorkerDialogState extends ConsumerState<_AddWorkerDialog> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  Color _selectedColor = AppTheme.workerColors[0];
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nou Treballador'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Nom', hintText: 'Ex: Sergi'),
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email de Google (opcional)',
+                hintText: 'Per sincronitzar calendari',
+                helperText: 'El treballador rebrà una invitació al calendari.',
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 24),
+            const Text('Color identificatiu:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: AppTheme.workerColors.map((color) {
+                final isSelected = _selectedColor == color;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedColor = color),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
+                      boxShadow: isSelected ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)] : null,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel·lar'),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving ? null : _save,
+          child: _isSaving 
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Text('Guardar'),
         ),
       ],
     );
+  }
+
+  void _save() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(workersProvider.notifier).addWorker(
+        name, 
+        _selectedColor, 
+        _emailController.text.trim(),
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
   }
 }

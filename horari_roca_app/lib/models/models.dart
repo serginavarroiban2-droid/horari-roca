@@ -20,6 +20,14 @@ class Worker {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    String hex = color.value.toRadixString(16).padLeft(8, '0');
+    return {
+      'name': name,
+      'color': '#${hex.substring(2)}',
+    };
+  }
+
   static Color _parseColor(String? hex) {
     if (hex == null || hex.isEmpty) return Colors.blue;
     hex = hex.replaceAll('#', '');
@@ -30,7 +38,7 @@ class Worker {
 
 // Model per a un Torn
 class Shift {
-  final int? id;
+  final dynamic id;
   final String workerName;
   final String date;
   final String startTime;
@@ -58,12 +66,13 @@ class Shift {
       startTime: json['start_time'] ?? '',
       endTime: json['end_time'] ?? '',
       note: json['note'],
-      lane: json['lane'] ?? 0,
+      lane: json['lane'] is int ? json['lane'] : int.tryParse(json['lane']?.toString() ?? '0') ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'worker_name': workerName,
       'date': date,
       'start_time': startTime,
@@ -75,15 +84,19 @@ class Shift {
 
   // Obtenir la duració en minuts
   int get durationMinutes {
-    final startParts = startTime.split(':');
-    final endParts = endTime.split(':');
-    final startMins = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
-    int endMins = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
-    
-    // Si el torn creua mitjanit
-    if (endMins <= startMins) endMins += 24 * 60;
-    
-    return endMins - startMins;
+    try {
+      final startParts = startTime.split(':');
+      final endParts = endTime.split(':');
+      final startMins = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+      int endMins = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+      
+      // Si el torn creua mitjanit
+      if (endMins <= startMins) endMins += 24 * 60;
+      
+      return endMins - startMins;
+    } catch (e) {
+      return 0;
+    }
   }
 
   // Ubicació basada en lane
@@ -91,7 +104,7 @@ class Shift {
 
   // Copiar amb modificacions
   Shift copyWith({
-    int? id,
+    dynamic id,
     String? workerName,
     String? date,
     String? startTime,
