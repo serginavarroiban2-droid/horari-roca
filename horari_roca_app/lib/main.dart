@@ -11,16 +11,16 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Inicialitzar localització per dates en català
   await initializeDateFormatting('ca', null);
-  
+
   // Inicialitzar Supabase
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
-  
+
   runApp(
     const ProviderScope(
       child: HorariRocaApp(),
@@ -34,13 +34,15 @@ class HorariRocaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDarkMode = ref.watch(darkModeProvider);
-    
+
     return MaterialApp(
       title: 'Horari Roca',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      locale: const Locale('ca'),
+      supportedLocales: const [Locale('ca'), Locale('es'), Locale('en')],
       home: const AuthWrapper(),
     );
   }
@@ -52,7 +54,7 @@ class AuthWrapper extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
-    
+
     return authState.when(
       loading: () => const Scaffold(
         body: Center(

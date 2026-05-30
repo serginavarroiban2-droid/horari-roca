@@ -1682,6 +1682,25 @@
       <h1>🗓️ Horari Roca</h1>
       <p>Planificador de torns</p>
       <div id="loginError" class="login-error"></div>
+
+      <!-- Botó Google Sign-In -->
+      <button id="googleSignInBtn" onclick="handleGoogleLogin()" style="
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; padding: 12px 20px; margin-bottom: 16px;
+        background: white; border: 1.5px solid #e2e8f0; border-radius: 10px;
+        font-size: 15px; font-weight: 600; color: #374151; cursor: pointer;
+        transition: all 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      " onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08)'">
+        <span style="font-size: 20px; font-weight: 900; color: #4285F4;">G</span>
+        Entrar amb Google
+      </button>
+
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+        <hr style="flex: 1; border: none; border-top: 1px solid #e2e8f0;">
+        <span style="color: #9ca3af; font-size: 13px;">o</span>
+        <hr style="flex: 1; border: none; border-top: 1px solid #e2e8f0;">
+      </div>
+
       <form id="authForm" onsubmit="handleLogin(event)">
         <input type="email" id="email" placeholder="Correu electrònic" required>
         <input type="password" id="password" placeholder="Contrasenya" required>
@@ -2155,6 +2174,26 @@
       } finally {
         authButton.disabled = false;
         authButton.textContent = 'Iniciar sessió';
+      }
+    }
+
+    async function handleGoogleLogin() {
+      const btn = document.getElementById('googleSignInBtn');
+      const loginError = document.getElementById('loginError');
+      loginError.style.display = 'none';
+      btn.disabled = true;
+      btn.innerHTML = '<span style="font-size:14px">⏳</span> Connectant...';
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) throw error;
+      } catch (err) {
+        loginError.textContent = 'Error iniciant sessió amb Google: ' + err.message;
+        loginError.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<span style="font-size: 20px; font-weight: 900; color: #4285F4;">G</span> Entrar amb Google';
       }
     }
 
