@@ -194,6 +194,7 @@ class _WeeklyTimelineGrid extends ConsumerWidget {
                         ),
                         ...shifts.map((s) => _InteractiveShiftBlock(
                           shift: s,
+                          allShifts: shifts,
                           weekStart: weekStart,
                           dayWidth: dayWidth,
                           hourHeight: hourHeight,
@@ -246,6 +247,20 @@ class _WeeklyTimelineGrid extends ConsumerWidget {
       lane: (adjustedDx % dayWidth / (dayWidth / 5)).floor(), // Calcular carril segons posició horitzontal interna del dia
     );
 
+    // COMPROVAR SUPERPOSICIÓ
+    final hasOverlap = shifts.any((existing) => Shift.checkOverlap(newShift, existing));
+    if (hasOverlap) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No es poden superposar torns en el mateix carril'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       await Supabase.instance.client.from('shifts').insert(newShift.toJson());
       ref.invalidate(shiftsProvider);
@@ -258,6 +273,7 @@ class _WeeklyTimelineGrid extends ConsumerWidget {
 
 class _InteractiveShiftBlock extends ConsumerWidget {
   final Shift shift;
+  final List<Shift> allShifts;
   final DateTime weekStart;
   final double dayWidth;
   final double hourHeight;
@@ -265,6 +281,7 @@ class _InteractiveShiftBlock extends ConsumerWidget {
 
   const _InteractiveShiftBlock({
     required this.shift,
+    required this.allShifts,
     required this.weekStart,
     required this.dayWidth,
     required this.hourHeight,
@@ -378,6 +395,12 @@ class _InteractiveShiftBlock extends ConsumerWidget {
     final newEnd = '${endH.toString().padLeft(2,'0')}:${endM.toString().padLeft(2,'0')}:00';
 
     if (newStart == shift.startTime && newEnd == shift.endTime) return;
+
+    // COMPROVAR SUPERPOSICIÓ
+    final updatedShift = shift.copyWith(startTime: newStart, endTime: newEnd);
+    final hasOverlap = allShifts.any((existing) => Shift.checkOverlap(updatedShift, existing));
+    
+    if (hasOverlap) return; // Simplement no actualitzem si hi ha overlap durant el drag
 
     try {
       await Supabase.instance.client.from('shifts').update({

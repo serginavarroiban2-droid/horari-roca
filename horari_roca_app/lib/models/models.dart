@@ -99,6 +99,31 @@ class Shift {
     }
   }
 
+  // Obtenir minuts des de l'inici del dia
+  static int timeToMinutes(String time) {
+    try {
+      final parts = time.split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // Comprovar si dos torns se superposen
+  static bool checkOverlap(Shift s1, Shift s2) {
+    if (s1.id == s2.id) return false;
+    if (s1.date != s2.date) return false;
+    if (s1.lane != s2.lane) return false;
+
+    final start1 = timeToMinutes(s1.startTime);
+    final end1 = timeToMinutes(s1.endTime);
+    final start2 = timeToMinutes(s2.startTime);
+    final end2 = timeToMinutes(s2.endTime);
+
+    // Condició de superposició: (StartA < EndB) && (EndA > StartB)
+    return start1 < end2 && end1 > start2;
+  }
+
   // Ubicació basada en lane
   String get location => lane >= 4 ? 'Rambla' : 'Roca';
 

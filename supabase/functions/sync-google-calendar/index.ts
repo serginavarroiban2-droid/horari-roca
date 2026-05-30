@@ -142,11 +142,11 @@ serve(async (req) => {
 
 async function syncShiftsForWorker(supabase: any, accessToken: string, workerName: string, calendarId: string) {
   const today = new Date();
-  const twoWeeks = new Date(today);
-  twoWeeks.setDate(today.getDate() + 45); // Sincronitzem 45 dies per seguretat
+  const futureRange = new Date(today);
+  futureRange.setDate(today.getDate() + 90); // Sincronitzem 90 dies (aprox 3 mesos) per seguretat
 
   const startDateStr = today.toISOString().slice(0, 10);
-  const endDateStr = twoWeeks.toISOString().slice(0, 10);
+  const endDateStr = futureRange.toISOString().slice(0, 10);
 
   // 1. Obtenir Shifts de Supabase
   const { data: shifts, error: shiftError } = await supabase.from("shifts").select("*")
@@ -160,7 +160,7 @@ async function syncShiftsForWorker(supabase: any, accessToken: string, workerNam
   // Convertim range a ISO amb timeZone si cal, però Google accepta 'Z'
   const timeMin = new Date(startDateStr).toISOString();
   // +1 dia per cobrir tot l'últim dia
-  const timeMax = new Date(twoWeeks.getTime() + 86400000).toISOString();
+  const timeMax = new Date(futureRange.getTime() + 86400000).toISOString();
 
   const googleEvents = await listEvents(accessToken, calendarId, timeMin, timeMax);
 
